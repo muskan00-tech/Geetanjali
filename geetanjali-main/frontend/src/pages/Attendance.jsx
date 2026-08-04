@@ -258,7 +258,28 @@ export default function AttendancePage() {
               {summary.map((row) => (
                 <tr key={row.staff_id}>
                   <td className="font-bold text-slate-900">{row.staff_name}</td>
-                  <td className="text-slate-700 font-medium">₹{row.base_salary?.toLocaleString()}</td>
+                  <td className="text-slate-700 font-medium">
+                    <div className="flex items-center gap-1.5">
+                      <span>₹{row.base_salary?.toLocaleString()}</span>
+                      <button
+                        onClick={() => {
+                          const matched = staffList.find((st) => st.id === row.staff_id || st.name.toLowerCase() === row.staff_name.toLowerCase());
+                          if (matched) {
+                            setEditingStaff(matched);
+                            setStaffForm({ name: matched.name, role: matched.role || matched.department || "STYLIST", base_salary: matched.base_salary });
+                          } else {
+                            setEditingStaff({ id: row.staff_id, name: row.staff_name });
+                            setStaffForm({ name: row.staff_name, role: "STYLIST", base_salary: row.base_salary });
+                          }
+                          setShowStaffModal(true);
+                        }}
+                        className="text-slate-400 hover:text-amber-600 transition-colors p-1"
+                        title="Edit Salary & Role"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </td>
                   <td className="text-emerald-700 font-bold">{row.days_present}</td>
                   <td className="text-amber-700 font-bold">{row.days_half_day}</td>
                   <td className="text-rose-700 font-bold">{row.days_absent}</td>

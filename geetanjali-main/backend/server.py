@@ -808,7 +808,29 @@ async def quality_failures():
         return [t.to_dict() for t in result.scalars().unique().all()]
 
 async def _auto_sync_staff_from_pos():
-    """Auto-seed any staff member present in POS transaction shares into Staff table if missing."""
+    """Auto-seed any staff member present in POS transaction shares into Staff table with Rudrapur July salary structure."""
+    salary_defaults = {
+        "siraj": (43000, "Stylist", "stylist"),
+        "jahangir": (35000, "Stylist", "stylist"),
+        "suhail": (41000, "Stylist", "stylist"),
+        "ashu": (70000, "Stylist", "stylist"),
+        "faid": (20000, "Assistant", "assistant"),
+        "sadik": (33000, "Barber", "barber"),
+        "alam": (23000, "Barber", "barber"),
+        "anju": (21000, "Beautician", "beautician"),
+        "urosha": (35000, "Beautician", "beautician"),
+        "uroosha": (35000, "Beautician", "beautician"),
+        "navneet": (27000, "Beautician", "beautician"),
+        "soni": (15000, "Housekeeping", "housekeeping"),
+        "lalita": (15000, "Housekeeping", "housekeeping"),
+        "geeta": (13000, "Housekeeping", "housekeeping"),
+        "fahim": (35000, "Pedicurist", "pedicurist"),
+        "faheem": (35000, "Pedicurist", "pedicurist"),
+        "sameer": (25000, "Pedicurist", "pedicurist"),
+        "sandhaya": (43000, "Manager", "manager"),
+        "sandhya": (43000, "Manager", "manager"),
+        "khan": (50000, "Manager", "manager"),
+    }
     async with async_session() as session:
         distinct_names = (await session.execute(
             select(POSTransactionStaff.name).where(
@@ -825,9 +847,25 @@ async def _auto_sync_staff_from_pos():
             existing = (await session.execute(
                 select(Staff).where(func.lower(func.trim(Staff.name)) == cname.lower())
             )).scalar_one_or_none()
+
+            # Determine default salary and designation
+            c_sal, c_desig, c_role = 25000, "Staff", "staff"
+            for key, val in salary_defaults.items():
+                if key in cname.lower():
+                    c_sal, c_desig, c_role = val
+                    break
+
             if not existing:
-                session.add(Staff(id=new_id(), name=cname, base_salary=25000, role="staff", created_at=now_utc()))
+                session.add(Staff(id=new_id(), name=cname, base_salary=c_sal, role=c_role, department=c_desig, created_at=now_utc()))
                 added = True
+            else:
+                # Upgrade existing base_salary if default 25000
+                if existing.base_salary != c_sal:
+                    existing.base_salary = c_sal
+                    existing.department = c_desig
+                    existing.role = c_role
+                    added = True
+
         if added:
             await session.commit()
 

@@ -41,20 +41,23 @@ class Base(DeclarativeBase):
     pass
 
 
-# Initialize Async PostgreSQL Engine with Production Connection Pooling
-try:
-    _engine = create_async_engine(
-        DATABASE_URL,
-        echo=False,
-        pool_size=int(os.environ.get("DB_POOL_SIZE", 10)),
-        max_overflow=int(os.environ.get("DB_MAX_OVERFLOW", 20)),
-        pool_pre_ping=True,
-        pool_recycle=1800,
-    )
+def create_engine_and_session(url: str):
+    global _engine, _async_session_factory
+    if "sqlite" in url:
+        _engine = create_async_engine(url, echo=False)
+    else:
+        _engine = create_async_engine(
+            url,
+            echo=False,
+            pool_size=int(os.environ.get("DB_POOL_SIZE", 10)),
+            max_overflow=int(os.environ.get("DB_MAX_OVERFLOW", 20)),
+            pool_pre_ping=True,
+            pool_recycle=1800,
+        )
     _async_session_factory = async_sessionmaker(_engine, class_=AsyncSession, expire_on_commit=False)
-except Exception as e:
-    log.critical(f"FATAL: Failed to initialize PostgreSQL Async Engine: {e}")
-    sys.exit(1)
+
+# Initialize Engine
+create_engine_and_session(DATABASE_URL)
 
 
 @asynccontextmanager
@@ -108,13 +111,14 @@ async def _migrate_sku_columns(conn):
 async def init_pg():
     """
     Connect to PostgreSQL and create database tables on startup.
-    If PostgreSQL fails to connect, abort startup immediately.
+    In Production, PostgreSQL is required. In local dev, falls back seamlessly if local Postgres service is not running.
     """
     import core.pg_models  # noqa: F401
-    log.info("Connecting to PostgreSQL database...")
+    env = os.environ.get("ENVIRONMENT", "development").lower()
+    log.info("Connecting to database...")
+    
     try:
         async with _engine.begin() as conn:
-            # Verify connectivity
             await conn.execute(text("SELECT 1"))
             await conn.run_sync(Base.metadata.create_all)
             await _migrate_sku_columns(conn)
@@ -124,8 +128,20 @@ async def init_pg():
                 pass
         log.info(f"PostgreSQL database connected and tables initialized successfully. [URL: {_engine.url.render_as_string(hide_password=True)}]")
     except Exception as e:
-        log.critical(f"FATAL: PostgreSQL connection failed: {e}. Aborting application startup.")
-        raise RuntimeError(f"PostgreSQL Connection Error: Could not connect to database at {_engine.url.render_as_string(hide_password=True)}. Error: {e}")
+        if env == "production":
+            log.critical(f"FATAL: PostgreSQL connection failed in production ({e}). Aborting startup.")
+            raise RuntimeError(f"PostgreSQL Connection Error: {e}")
+        else:
+            log.warning(f"Local PostgreSQL not detected ({e}). Initializing local development database engine...")
+            create_engine_and_session("sqlite+aiosqlite:///./geetanjali.db")
+            async with _engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+                await _migrate_sku_columns(conn)
+                try:
+                    await conn.execute(text("ALTER TABLE product_incentive_mappings ADD COLUMN IF NOT EXISTS sku_id VARCHAR(64)"))
+                except Exception:
+                    pass
+            log.info("Local development database initialized successfully.")
 
 
 async def close_pg():

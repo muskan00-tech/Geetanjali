@@ -809,28 +809,30 @@ async def quality_failures():
 
 async def _auto_sync_staff_from_pos():
     """Auto-seed any staff member present in POS transaction shares into Staff table with Rudrapur July salary structure."""
-    salary_defaults = {
-        "siraj": (43000, "Stylist", "stylist"),
-        "jahangir": (35000, "Stylist", "stylist"),
-        "suhail": (41000, "Stylist", "stylist"),
-        "ashu": (70000, "Stylist", "stylist"),
-        "faid": (20000, "Assistant", "assistant"),
-        "sadik": (33000, "Barber", "barber"),
-        "alam": (23000, "Barber", "barber"),
-        "anju": (21000, "Beautician", "beautician"),
-        "urosha": (35000, "Beautician", "beautician"),
-        "uroosha": (35000, "Beautician", "beautician"),
-        "navneet": (27000, "Beautician", "beautician"),
-        "soni": (15000, "Housekeeping", "housekeeping"),
-        "lalita": (15000, "Housekeeping", "housekeeping"),
-        "geeta": (13000, "Housekeeping", "housekeeping"),
-        "fahim": (35000, "Pedicurist", "pedicurist"),
-        "faheem": (35000, "Pedicurist", "pedicurist"),
-        "sameer": (25000, "Pedicurist", "pedicurist"),
-        "sandhaya": (43000, "Manager", "manager"),
-        "sandhya": (43000, "Manager", "manager"),
-        "khan": (50000, "Manager", "manager"),
-    }
+    salary_defaults = [
+        ("suhail khan", (50000, "Manager", "manager")),
+        ("khan", (50000, "Manager", "manager")),
+        ("uhd suhail", (41000, "Stylist", "stylist")),
+        ("suhail", (41000, "Stylist", "stylist")),
+        ("siraj", (43000, "Stylist", "stylist")),
+        ("jahangir", (35000, "Stylist", "stylist")),
+        ("ashu", (70000, "Stylist", "stylist")),
+        ("faid", (20000, "Assistant", "assistant")),
+        ("sadik", (33000, "Barber", "barber")),
+        ("alam", (23000, "Barber", "barber")),
+        ("anju", (21000, "Beautician", "beautician")),
+        ("urosha", (35000, "Beautician", "beautician")),
+        ("uroosha", (35000, "Beautician", "beautician")),
+        ("navneet", (27000, "Beautician", "beautician")),
+        ("soni", (15000, "Housekeeping", "housekeeping")),
+        ("lalita", (15000, "Housekeeping", "housekeeping")),
+        ("geeta", (13000, "Housekeeping", "housekeeping")),
+        ("fahim", (35000, "Pedicurist", "pedicurist")),
+        ("faheem", (35000, "Pedicurist", "pedicurist")),
+        ("sameer", (25000, "Pedicurist", "pedicurist")),
+        ("sandhaya", (43000, "Manager", "manager")),
+        ("sandhya", (43000, "Manager", "manager")),
+    ]
     async with async_session() as session:
         distinct_names = (await session.execute(
             select(POSTransactionStaff.name).where(
@@ -850,7 +852,7 @@ async def _auto_sync_staff_from_pos():
 
             # Determine default salary and designation
             c_sal, c_desig, c_role = 25000, "Staff", "staff"
-            for key, val in salary_defaults.items():
+            for key, val in salary_defaults:
                 if key in cname.lower():
                     c_sal, c_desig, c_role = val
                     break
@@ -929,7 +931,6 @@ async def update_staff(staff_id: str, payload: StaffUpdateIn, user: dict = Depen
             staff.name = payload.name.strip()
         if payload.role is not None:
             staff.role = payload.role.strip()
-            staff.department = payload.role.strip()
         if payload.base_salary is not None:
             staff.base_salary = payload.base_salary
         if payload.email is not None:

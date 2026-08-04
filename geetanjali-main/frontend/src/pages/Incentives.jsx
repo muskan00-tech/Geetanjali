@@ -3,7 +3,7 @@ import api, { API, money, errMsg } from "../lib/api";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
-import { AlertCircle, Sparkles, Eye, X } from "lucide-react";
+import { AlertCircle, Sparkles, Eye, X, Edit3 } from "lucide-react";
 import DatePicker from "@/components/ui/DatePicker";
 
 function CumulativeReport({ onViewDetails }) {
@@ -104,6 +104,47 @@ export default function Incentives() {
   const [detailData, setDetailData] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [cumulativeUnpaidDays, setCumulativeUnpaidDays] = useState([]);
+
+  // Edit Salary Modal State
+  const [salaryModalOpen, setSalaryModalOpen] = useState(false);
+  const [editingStaff, setEditingStaff] = useState(null);
+  const [salaryForm, setSalaryForm] = useState({ name: "", base_salary: 25000, department: "" });
+  const [salarySaving, setSalarySaving] = useState(false);
+
+  const handleOpenSalaryModal = (staffRow) => {
+    setEditingStaff(staffRow);
+    setSalaryForm({
+      name: staffRow.staff_name || staffRow.name || "",
+      base_salary: staffRow.base_salary || 25000,
+      department: staffRow.department || staffRow.role || "Stylist",
+    });
+    setSalaryModalOpen(true);
+  };
+
+  const handleSaveSalary = async (e) => {
+    e.preventDefault();
+    if (!editingStaff) return;
+    setSalarySaving(true);
+    try {
+      await api.put(`/staff/${editingStaff.staff_id || editingStaff.id}`, {
+        name: salaryForm.name,
+        base_salary: Number(salaryForm.base_salary),
+        department: salaryForm.department,
+      });
+      toast.success(`Updated ${salaryForm.name}'s base salary to ${money(salaryForm.base_salary)}`);
+      setSalaryModalOpen(false);
+      // Reload current tab data
+      if (tab === "monthly" && month) {
+        api.get(`/incentives/monthly?month=${month}`).then((r) => setMonthly(r.data));
+      } else if (tab === "daily" && day) {
+        api.get(`/incentives/daily?day=${day}`).then((r) => setDaily(r.data));
+      }
+    } catch (err) {
+      toast.error(errMsg(err));
+    } finally {
+      setSalarySaving(false);
+    }
+  };
 
   const loadDetailData = (staffName, type, dateVal) => {
     setDetailStaffName(staffName);
@@ -343,7 +384,19 @@ export default function Incentives() {
                             <span>{r.staff_name}</span>
                           </div>
                         </td>
-                        <td className="text-right tabular font-semibold text-slate-700">{money(r.base_salary)}</td>
+                        <td className="text-right tabular font-semibold text-slate-700">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <span>{money(r.base_salary)}</span>
+                            <button
+                              onClick={() => handleOpenSalaryModal(r)}
+                              className="text-slate-400 hover:text-amber-600 transition-colors p-1"
+                              title="Edit Base Salary"
+                              data-testid={`edit-salary-${r.staff_id}`}
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
                         <td className="text-right tabular font-semibold text-slate-700">{money(r.monthly_service_revenue)}</td>
                         <td className="text-right tabular font-extrabold text-slate-950">{r.ratio}×</td>
                         <td className="text-right tabular font-extrabold text-amber-800">{r.pct}%</td>
@@ -656,6 +709,45 @@ export default function Incentives() {
               </button>
             </div>
           </div>
+        </div>
+      {/* Edit Staff Base Salary Modal */}
+      {salaryModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-200 space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-extrabold text-lg text-slate-900">Edit Base Salary</h3>
+                <p className="text-xs font-medium text-slate-500">{editingStaff?.staff_name || editingStaff?.name}</p>
+              </div>
+              <button onClick={() => setSalaryModalOpen(false)} className="text-slate-400 hover:text-slate-700 p-1 rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSalary} className="space-y-4">
+              <div>
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-600 mb-1.5">Employee Name</label>
+                <input type="text" value={salaryForm.name} onChange={e => setSalaryForm({...salaryForm, name: e.target.value})} className="lss-input w-full font-bold" required />
+              </div>
+
+              <div>
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-600 mb-1.5">Designation / Role</label>
+                <input type="text" value={salaryForm.department} onChange={e => setSalaryForm({...salaryForm, department: e.target.value})} className="lss-input w-full font-semibold" placeholder="e.g. Stylist, Manager, Beautician" required />
+              </div>
+
+              <div>
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-600 mb-1.5">Monthly Base Salary (₹)</label>
+                <input type="number" step="500" value={salaryForm.base_salary} onChange={e => setSalaryForm({...salaryForm, base_salary: e.target.value})} className="lss-input w-full font-mono text-lg font-extrabold text-amber-900" required />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3">
+                <button type="button" onClick={() => setSalaryModalOpen(false)} className="px-4 py-2 text-xs font-extrabold uppercase tracking-wider text-slate-600 hover:bg-slate-100 rounded-xl">Cancel</button>
+                <button type="submit" disabled={salarySaving} className="lss-btn-gold px-5 py-2 text-xs font-extrabold uppercase tracking-wider rounded-xl">
+                  {salarySaving ? "Saving..." : "Save Salary"}
+                </button>
+              </div>
+            </form>
+          </motion.div>
         </div>
       )}
     </div>

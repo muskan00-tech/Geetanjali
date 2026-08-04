@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # 1. Production PostgreSQL 16 Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: geetanjali_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-geetanjali_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-SecurePassword123!}
+      POSTGRES_DB: ${POSTGRES_DB:-geetanjali_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-geetanjali_user} -d ${POSTGRES_DB:-geetanjali_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 2. FastAPI Enterprise Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: geetanjali_backend
+    restart: always
+    environment:
+      - PG_DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-geetanjali_user}:${POSTGRES_PASSWORD:-SecurePassword123!}@postgres:5432/${POSTGRES_DB:-geetanjali_db}
+      - JWT_SECRET=${JWT_SECRET:-production_jwt_secret_geetanjali_salon_2026_key}
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      - OWNER_EMAIL=${OWNER_EMAIL:-owner@geetanjalisalon.com}
+      - OWNER_PASSWORD=${OWNER_PASSWORD:-OwnerSecurePass123!}
+      - MANAGER_EMAIL=${MANAGER_EMAIL:-manager@geetanjalisalon.com}
+      - MANAGER_PASSWORD=${MANAGER_PASSWORD:-ManagerSecurePass123!}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # 3. React Production Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: geetanjali_frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+    driver: local

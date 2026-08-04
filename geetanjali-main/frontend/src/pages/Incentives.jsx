@@ -710,6 +710,8 @@ export default function Incentives() {
             </div>
           </div>
         </div>
+      )}
+
       {/* Edit Staff Base Salary Modal */}
       {salaryModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">

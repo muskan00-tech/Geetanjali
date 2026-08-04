@@ -293,13 +293,20 @@ export default function Incentives() {
 
         {tab === "monthly" && (
           <motion.div key="monthly" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-            <div className="flex items-center gap-4 mb-6">
+            <div className="flex items-center gap-4 mb-6 flex-wrap">
               <DatePicker
                 type="month"
                 value={month}
                 posDates={dates}
                 onChange={(e) => setMonth(e.target.value)}
               />
+              <a
+                href={`${API}/reports/monthly-incentives.xlsx?month=${month}`}
+                data-testid="monthly-export"
+                className="lss-btn-gold px-4 py-2 text-xs uppercase tracking-wider font-bold ml-auto self-end"
+              >
+                Export Excel
+              </a>
             </div>
             {loading ? (
               <div className="p-4 space-y-4 animate-pulse">

@@ -1728,6 +1728,57 @@ async def _cumulative_data(date_from: str, date_to: str, only_unpaid: bool):
 async def cumulative_payouts(date_from: str, date_to: str, only_unpaid: bool = True):
     return await _cumulative_data(date_from, date_to, only_unpaid)
 
+@api.get("/reports/monthly-incentives.xlsx")
+async def export_monthly_incentives_xlsx(month: str):
+    data = await incentives_monthly(month)
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = f"Monthly Report {month}"
+    _make_header(ws, [
+        "Staff Name", "Base Salary ₹", "Monthly Service Revenue ₹",
+        "Efficiency Ratio (×)", "Slab %", "Efficiency Bonus ₹",
+        "Retail Commission ₹", "Prepaid Card Bonus ₹", "Total Earned ₹"
+    ], note=f"Geetanjali Salon Monthly Staff Incentive & Efficiency Report — {month}")
+    
+    rows = data.get("rows", [])
+    for i, r in enumerate(rows, start=4):
+        ws.cell(i, 1, r.get("staff_name", ""))
+        ws.cell(i, 2, r.get("base_salary", 0))
+        ws.cell(i, 3, r.get("monthly_service_revenue", 0))
+        ws.cell(i, 4, f"{r.get('ratio', 0)}×")
+        ws.cell(i, 5, f"{r.get('pct', 0)}%")
+        ws.cell(i, 6, r.get("efficiency_bonus", 0))
+        ws.cell(i, 7, r.get("retail_commission", 0))
+        ws.cell(i, 8, r.get("prepaid_card_bonus", 0))
+        ws.cell(i, 9, r.get("total", 0))
+
+    if rows:
+        tot_row = len(rows) + 4
+        ws.cell(tot_row, 1, "TOTAL")
+        ws.cell(tot_row, 2, sum(r.get("base_salary", 0) for r in rows))
+        ws.cell(tot_row, 3, sum(r.get("monthly_service_revenue", 0) for r in rows))
+        ws.cell(tot_row, 4, "—")
+        ws.cell(tot_row, 5, "—")
+        ws.cell(tot_row, 6, sum(r.get("efficiency_bonus", 0) for r in rows))
+        ws.cell(tot_row, 7, sum(r.get("retail_commission", 0) for r in rows))
+        ws.cell(tot_row, 8, sum(r.get("prepaid_card_bonus", 0) for r in rows))
+        ws.cell(tot_row, 9, sum(r.get("total", 0) for r in rows))
+
+        font_bold = Font(name="Calibri", size=11, bold=True)
+        for col_idx in range(1, 10):
+            cell = ws.cell(tot_row, col_idx)
+            cell.font = font_bold
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    fname = f"Geetanjali_Monthly_Incentives_{month}.xlsx"
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={fname}"}
+    )
+
 @api.get("/reports/cumulative-payouts.xlsx")
 async def cumulative_payouts_xlsx(date_from: str, date_to: str, only_unpaid: bool = True):
     data = await _cumulative_data(date_from, date_to, only_unpaid)

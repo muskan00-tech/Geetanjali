@@ -134,10 +134,10 @@ export default function DatePicker({
           {posDates && posDates.length > 0 && (
             <div className="mb-3 pb-3 border-b border-slate-200">
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 uppercase tracking-wide mb-2">
-                <Sparkles className="w-3.5 h-3.5 text-amber-700" /> Available POS Dates
+                <Sparkles className="w-3.5 h-3.5 text-amber-700" /> Available POS {type === "month" ? "Months" : "Dates"}
               </div>
               <div className="flex flex-wrap gap-1.5 max-h-16 overflow-y-auto pr-1">
-                {posDates.slice(0, 6).map((d) => (
+                {Array.from(new Set(posDates.map(d => type === "month" ? d.slice(0, 7) : d))).slice(0, 6).map((d) => (
                   <button
                     key={d}
                     type="button"

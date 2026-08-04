@@ -174,6 +174,7 @@ export default function POSUpload() {
                 <th className="text-right">Rate</th>
                 <th className="text-right">Discount</th>
                 <th className="text-right">Net Price</th>
+                <th className="text-right">Value Card</th>
                 <th>Staff</th>
               </tr>
             </thead>
@@ -194,6 +195,7 @@ export default function POSUpload() {
                   <td className="text-right tabular font-medium text-slate-700">{money(t.rate)}</td>
                   <td className="text-right tabular font-bold text-amber-800">{money(t.total_discount)}</td>
                   <td className="text-right tabular font-extrabold text-slate-950">{money(t.net_price)}</td>
+                  <td className="text-right tabular font-bold text-amber-900">{money(t.value_card_paid || t.other || 0)}</td>
                   <td className="text-xs text-slate-700 font-semibold">
                     {t.staff?.map((s) => s.name).join(", ")}
                   </td>
@@ -201,7 +203,7 @@ export default function POSUpload() {
               ))}
               {txns.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="text-center text-slate-500 font-medium py-10">
+                  <td colSpan={9} className="text-center text-slate-500 font-medium py-10">
                     No transactions found for {day || "selected date"}.
                   </td>
                 </tr>

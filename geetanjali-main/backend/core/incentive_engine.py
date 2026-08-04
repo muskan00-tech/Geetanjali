@@ -1,6 +1,5 @@
 """Incentive configuration defaults and calculation engine."""
 from typing import List, Dict, Any
-from core.database import db
 
 DEFAULT_CONFIG = {
     "id": "master",
@@ -20,59 +19,31 @@ DEFAULT_CONFIG = {
     ],
     "retail_commission_pct": 0,
     "product_incentives": [
-        # Kerastase
-        {"brand": "kerastase", "pattern": "shampoo", "amount": 150},
-        {"brand": "kerastase", "pattern": "fresh affair", "amount": 150},
-        {"brand": "kerastase", "pattern": "elixer ultimate l'huile original serum (30ml)", "amount": 100},
-        {"brand": "kerastase", "pattern": "elixer ultimate l'huile original serum refil", "amount": 150},
-        {"brand": "kerastase", "pattern": "elixer ultimate l'huile original serum (75ml)", "amount": 200},
-        {"brand": "kerastase", "pattern": "masque", "amount": 200},
-        {"brand": "kerastase", "pattern": "mask", "amount": 200},
-        {"brand": "kerastase", "pattern": "nutritive 8h", "amount": 200},
-        {"brand": "kerastase", "pattern": "stimuliste", "amount": 200},
-        {"brand": "kerastase", "pattern": "initialiste", "amount": 200},
-        {"brand": "kerastase", "pattern": "genesis anti hair-fall", "amount": 200},
-        {"brand": "kerastase", "pattern": "genesis ampoules", "amount": 250},
-        {"brand": "kerastase", "pattern": "cure apaisante", "amount": 200},
-        {"brand": "kerastase", "pattern": "cure densifique", "amount": 750},
-        {"brand": "kerastase", "pattern": "cure anti-chute", "amount": 750},
-        # Loreal
-        {"brand": "loreal", "pattern": "metal dx shampoo", "amount": 100},
-        {"brand": "loreal", "pattern": "metal dx hair mask", "amount": 100},
-        {"brand": "loreal", "pattern": "absolut repair molecular shampoo", "amount": 60},
-        {"brand": "loreal", "pattern": "absolut repair molecular masque", "amount": 100},
-        {"brand": "loreal", "pattern": "absolut repair molecular serum", "amount": 60},
-        {"brand": "loreal", "pattern": "aminexil", "amount": 150},
-        {"brand": "loreal", "pattern": "serioxyl", "amount": 150},
-        {"brand": "loreal", "pattern": "shampoo", "amount": 50},
-        {"brand": "loreal", "pattern": "masque", "amount": 50},
-        {"brand": "loreal", "pattern": "mask", "amount": 50},
-        # Redken
-        {"brand": "redken", "pattern": "", "amount": 100},
-        # K18
-        {"brand": "k18", "pattern": "5ml", "amount": 50},
-        {"brand": "k18", "pattern": "50ml", "amount": 150},
-        # Moroccan
-        {"brand": "moroccan", "pattern": "light treatment oil", "amount": 150},
-        {"brand": "moroccan", "pattern": "", "amount": 100},
-        # Olaplex
-        {"brand": "olaplex", "pattern": "no. 3 bond repair", "amount": 150},
-        {"brand": "olaplex", "pattern": "no. 6", "amount": 150},
-        {"brand": "olaplex", "pattern": "no. 7", "amount": 150},
-        {"brand": "olaplex", "pattern": "", "amount": 100},
-        # De Fabulous / Kerafusion
-        {"brand": "de fabulous", "pattern": "", "amount": 100},
-        {"brand": "kerafusion", "pattern": "", "amount": 100},
+        # L'Oreal Professionnel
+        {"brand": "loreal", "brand_display": "L'Oréal Professionnel", "min_price": 1, "max_price": 2000, "amount": 50},
+        {"brand": "loreal", "brand_display": "L'Oréal Professionnel", "min_price": 2001, "max_price": 4000, "amount": 100},
+        {"brand": "loreal", "brand_display": "L'Oréal Professionnel", "min_price": 4001, "max_price": 999999, "amount": 150},
         # Kanpeki
-        {"brand": "kanpeki", "pattern": "", "amount": 100},
-        # Guinot slabs
-        {"brand": "guinot", "pattern": "", "max_price": 3499, "amount": 150},
-        {"brand": "guinot", "pattern": "", "min_price": 3500, "max_price": 4499, "amount": 200},
-        {"brand": "guinot", "pattern": "", "min_price": 4500, "max_price": 6999, "amount": 350},
-        {"brand": "guinot", "pattern": "", "min_price": 7000, "amount": 500},
-        # Thalgo slabs
-        {"brand": "thalgo", "pattern": "", "max_price": 4999, "amount": 100},
-        {"brand": "thalgo", "pattern": "", "min_price": 5000, "amount": 200},
+        {"brand": "kanpeki", "brand_display": "Kanpeki", "min_price": 1, "max_price": 3000, "amount": 50},
+        {"brand": "kanpeki", "brand_display": "Kanpeki", "min_price": 3001, "max_price": 999999, "amount": 100},
+        # Kerastase
+        {"brand": "kerastase", "brand_display": "Kérastase", "min_price": 1, "max_price": 3000, "amount": 50},
+        {"brand": "kerastase", "brand_display": "Kérastase", "min_price": 3001, "max_price": 6000, "amount": 100},
+        {"brand": "kerastase", "brand_display": "Kérastase", "min_price": 6001, "max_price": 9000, "amount": 150},
+        {"brand": "kerastase", "brand_display": "Kérastase", "min_price": 9001, "max_price": 12000, "amount": 200},
+        {"brand": "kerastase", "brand_display": "Kérastase", "min_price": 12001, "max_price": 999999, "amount": 250},
+        # Olaplex
+        {"brand": "olaplex", "brand_display": "Olaplex", "min_price": 1, "max_price": 3000, "amount": 50},
+        {"brand": "olaplex", "brand_display": "Olaplex", "min_price": 3001, "max_price": 5000, "amount": 100},
+        {"brand": "olaplex", "brand_display": "Olaplex", "min_price": 5001, "max_price": 999999, "amount": 150},
+        # Kerafusion / De Fabulous
+        {"brand": "de fabulous", "brand_display": "Kerafusion / De Fabulous", "min_price": 1, "max_price": 2000, "amount": 50},
+        {"brand": "de fabulous", "brand_display": "Kerafusion / De Fabulous", "min_price": 2001, "max_price": 4000, "amount": 100},
+        {"brand": "de fabulous", "brand_display": "Kerafusion / De Fabulous", "min_price": 4001, "max_price": 999999, "amount": 150},
+        # Amazon Series
+        {"brand": "amazon series", "brand_display": "Amazon Series", "min_price": 1, "max_price": 999999, "amount": 100},
+        # QOD
+        {"brand": "qod", "brand_display": "QOD", "min_price": 1, "max_price": 999999, "amount": 100},
     ],
     "gift_card_commission_pct": 3,
     "membership_commission_pct": 2,
@@ -91,19 +62,57 @@ DEFAULT_CONFIG = {
 
 
 async def get_config() -> dict:
-    """Retrieve the master config from DB, or fall back to defaults."""
-    cfg = await db.config.find_one({"id": "master"}, {"_id": 0})
-    return cfg or DEFAULT_CONFIG
+    """Retrieve default master config."""
+    return DEFAULT_CONFIG
+
+
+# -----------------------------------------------------------------------------
+# SERVICE INCENTIVE ENGINE (ELIGIBLE SERVICE AMOUNT FORMULA)
+# -----------------------------------------------------------------------------
+# Formula:
+#   Eligible Service Amount = MAX(0, Net Amount - (Paid from Value Card * 0.50))
+#
+# Shared Service Split:
+#   Staff Eligible Value = Eligible Service Amount * (Staff Contribution % / 100)
+#
+# Daily Total Base:
+#   Daily Eligible Service Total = Sum of all Staff Eligible Values for that business day
+# -----------------------------------------------------------------------------
+
+def calc_eligible_service_amount(net_amount: float, value_card_paid: float = 0.0) -> float:
+    """
+    Calculate Eligible Service Amount per line item.
+    Formula: MAX(0, Net Amount - (Paid from Value Card * 50%))
+    """
+    net_val = float(net_amount or 0.0)
+    vc_paid = max(0.0, float(value_card_paid or 0.0))
+    eligible = net_val - (vc_paid * 0.50)
+    return max(0.0, round(eligible, 2))
+
+
+def calc_staff_eligible_value(eligible_service_amount: float, share_pct: float = 100.0) -> float:
+    """
+    Split Eligible Service Amount among contributing staff members.
+    Formula: Staff Share Value = Eligible Service Amount * (Staff Contribution % / 100)
+    """
+    pct_frac = float(share_pct or 100.0) / 100.0
+    return round(float(eligible_service_amount or 0.0) * pct_frac, 2)
 
 
 def calc_daily_bonus(service_revenue: float, tiers: List[dict]) -> Dict[str, Any]:
-    """Calculate daily bonus based on service revenue and tier brackets."""
+    """
+    Calculate daily bonus based on Daily Eligible Service Total and tier brackets.
+    Evaluates strictly against Daily Eligible Service Total base (never raw Net Amount).
+    """
     tier_hit = None
-    for t in sorted(tiers, key=lambda x: x["min"]):
-        if service_revenue >= t["min"] and service_revenue <= t["max"]:
+    total = float(service_revenue or 0.0)
+    for t in sorted(tiers, key=lambda x: x["min"], reverse=True):
+        if total >= t["min"]:
             tier_hit = t
+            break
     return {
-        "service_revenue": round(service_revenue, 2),
+        "service_revenue": round(total, 2),
+        "daily_eligible_service_total": round(total, 2),
         "tier": tier_hit,
         "bonus": tier_hit["bonus"] if tier_hit else 0,
     }
@@ -115,9 +124,10 @@ def calc_monthly_bonus(monthly_service_rev: float, salary: float, mults: List[di
         return {"ratio": 0, "pct": 0, "amount": 0}
     ratio = monthly_service_rev / salary
     hit = None
-    for m in sorted(mults, key=lambda x: x["min_ratio"]):
-        if ratio >= m["min_ratio"] and ratio < m["max_ratio"]:
+    for m in sorted(mults, key=lambda x: x["min_ratio"], reverse=True):
+        if ratio >= m["min_ratio"]:
             hit = m
+            break
     return {
         "ratio": round(ratio, 2),
         "pct": hit["pct"] if hit else 0,
@@ -143,7 +153,6 @@ def calc_product_incentive(item_name: str, brand: str, net_price: float, qty: fl
     if not item_name or qty <= 0:
         return 0.0
     item_key = item_name.strip().lower()
-
     if mappings and item_key in mappings:
         map_entry = mappings[item_key]
         return float(map_entry.get("amount", 0)) * qty
@@ -151,20 +160,13 @@ def calc_product_incentive(item_name: str, brand: str, net_price: float, qty: fl
     name_lc = item_key
     brand_lc = (brand or "").lower()
     aliases = {
-        "kerastase": ["k chroma", "k genesis", "k reflection", "k nutritive", "k specifique",
-                       "k densifique", "k blond", "k discipline", "k resistance", "k elixir",
-                       "k initialiste", "k symbiose", "k first", " keras", "elixir ultime", "kerastase"],
-        "loreal": ["l'oreal", "loreal", "serie expert", "absolut repair", "metal dx",
-                    "aminexil", "serioxyl", "vitamino", "inoa", "majirel"],
-        "redken": ["redken", "acidic", "extreme", "all soft"],
+        "loreal": ["l'oreal", "loreal", "l'oreal professionnel", "loreal professionnel", "serie expert", "absolut repair", "metal dx", "aminexil", "serioxyl", "vitamino", "inoa", "majirel"],
+        "kanpeki": ["kanpeki", "kenpeki"],
+        "kerastase": ["kerastase", "kérastase", "k chroma", "k genesis", "k reflection", "k nutritive", "k specifique", "k densifique", "k blond", "k discipline", "k resistance", "k elixir", "k initialiste", "k symbiose", "k first", " keras", "elixir ultime"],
         "olaplex": ["olaplex", "bond maintenance"],
-        "moroccan": ["moroccan", "moroccanoil"],
-        "k18": ["k18"],
-        "kanpeki": ["kanpeki"],
-        "guinot": ["guinot"],
-        "thalgo": ["thalgo"],
-        "de fabulous": ["de fabulous"],
-        "kerafusion": ["kerafusion"],
+        "de fabulous": ["de fabulous", "kerafusion"],
+        "amazon series": ["amazon", "amazone", "amazon series", "amazone series"],
+        "qod": ["qod"],
     }
     unit_price = net_price / qty if qty else 0
     for rule in rules:
@@ -201,13 +203,5 @@ def calc_product_incentive(item_name: str, brand: str, net_price: float, qty: fl
 
 
 async def staff_day_product_incentive(staff_name: str, day: str, rules: List[dict]) -> float:
-    """Sum product incentive for all Product-type POS rows this staff sold on a day."""
-    total = 0.0
-    async for r in db.pos_transactions.find({"date": day, "type": "Product", "staff.name": staff_name}, {"_id": 0}):
-        share = next((s["pct"] for s in r.get("staff", []) if s["name"] == staff_name), 100) / 100
-        brand = ""
-        sku = await db.skus.find_one({"name": r.get("item_name", "").strip()})
-        if sku:
-            brand = sku.get("vendor_name") or sku.get("category") or ""
-        total += calc_product_incentive(r.get("item_name", ""), brand, r.get("net_price", 0), r.get("quantity", 1), rules) * share
-    return round(total, 2)
+    """Incentives disabled - return 0.0"""
+    return 0.0

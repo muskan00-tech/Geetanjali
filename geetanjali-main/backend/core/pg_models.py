@@ -189,17 +189,29 @@ class POSTransaction(Base):
         back_populates="transaction", cascade="all, delete-orphan", lazy="selectin"
     )
 
+    @property
+    def eligible_service_amount(self) -> float:
+        if (self.type or "").strip().lower() in ("product", "retail"):
+            return float(self.net_price or 0.0)
+        vc_paid = max(0.0, float(self.other or 0.0))
+        eligible = float(self.net_price or 0.0) - (vc_paid * 0.50)
+        return round(max(0.0, eligible), 2)
+
     def to_dict(self):
         return {
             "id": self.id, "salon": self.salon, "invoice_number": self.invoice_number,
             "date": self.date, "time": self.time, "client": self.client,
+            "client_name": self.client,
             "type": self.type, "item_name": self.item_name, "category": self.category,
             "quantity": self.quantity, "rate": self.rate,
             "membership_discount": self.membership_discount,
             "manager_discount": self.manager_discount,
             "offer_discount": self.offer_discount,
             "total_discount": self.total_discount,
-            "net_price": self.net_price, "tax": self.tax,
+            "net_price": self.net_price,
+            "value_card_paid": self.other,
+            "eligible_service_amount": self.eligible_service_amount,
+            "tax": self.tax,
             "total_collection": self.total_collection,
             "cash": self.cash, "card": self.card, "other": self.other,
             "staff": [s.to_dict() for s in (self.staff_shares or [])],

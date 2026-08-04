@@ -32,7 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.pg_database import engine, async_session, init_pg, close_pg, get_session
 from core.pg_models import (
-    User, Staff, SKU, SKUBatch, POSTransaction, POSTransactionStaff,
+    Base, User, Staff, SKU, SKUBatch, POSTransaction, POSTransactionStaff,
     Payout, Checkout, PurchaseInvoice, PurchaseInvoiceLine,
     Vendor, AppConfig, AppFlag,
     Attendance, StockAudit, StockAuditItem,
@@ -40,6 +40,11 @@ from core.pg_models import (
     Budget, BudgetLineItem,
     PurchaseOrder, POLine, POStatusHistory,
     VendorContract, StockLedger, ProductIncentiveMapping,
+)
+
+from core.incentive_engine import (
+    DEFAULT_CONFIG, get_config, calc_eligible_service_amount, calc_staff_eligible_value,
+    calc_daily_bonus, calc_monthly_bonus, calc_manager_bonus, calc_product_incentive
 )
 
 # ------------------ Config ------------------
@@ -145,49 +150,31 @@ DEFAULT_CONFIG = {
     ],
     "retail_commission_pct": 0,
     "product_incentives": [
-        {"brand": "kerastase", "pattern": "shampoo", "amount": 150},
-        {"brand": "kerastase", "pattern": "fresh affair", "amount": 150},
-        {"brand": "kerastase", "pattern": "elixer ultimate l'huile original serum (30ml)", "amount": 100},
-        {"brand": "kerastase", "pattern": "elixer ultimate l'huile original serum refil", "amount": 150},
-        {"brand": "kerastase", "pattern": "elixer ultimate l'huile original serum (75ml)", "amount": 200},
-        {"brand": "kerastase", "pattern": "masque", "amount": 200},
-        {"brand": "kerastase", "pattern": "mask", "amount": 200},
-        {"brand": "kerastase", "pattern": "nutritive 8h", "amount": 200},
-        {"brand": "kerastase", "pattern": "stimuliste", "amount": 200},
-        {"brand": "kerastase", "pattern": "initialiste", "amount": 200},
-        {"brand": "kerastase", "pattern": "genesis anti hair-fall", "amount": 200},
-        {"brand": "kerastase", "pattern": "genesis ampoules", "amount": 250},
-        {"brand": "kerastase", "pattern": "cure apaisante", "amount": 200},
-        {"brand": "kerastase", "pattern": "cure densifique", "amount": 750},
-        {"brand": "kerastase", "pattern": "cure anti-chute", "amount": 750},
-        {"brand": "loreal", "pattern": "metal dx shampoo", "amount": 100},
-        {"brand": "loreal", "pattern": "metal dx hair mask", "amount": 100},
-        {"brand": "loreal", "pattern": "absolut repair molecular shampoo", "amount": 60},
-        {"brand": "loreal", "pattern": "absolut repair molecular masque", "amount": 100},
-        {"brand": "loreal", "pattern": "absolut repair molecular serum", "amount": 60},
-        {"brand": "loreal", "pattern": "aminexil", "amount": 150},
-        {"brand": "loreal", "pattern": "serioxyl", "amount": 150},
-        {"brand": "loreal", "pattern": "shampoo", "amount": 50},
-        {"brand": "loreal", "pattern": "masque", "amount": 50},
-        {"brand": "loreal", "pattern": "mask", "amount": 50},
-        {"brand": "redken", "pattern": "", "amount": 100},
-        {"brand": "k18", "pattern": "5ml", "amount": 50},
-        {"brand": "k18", "pattern": "50ml", "amount": 150},
-        {"brand": "moroccan", "pattern": "light treatment oil", "amount": 150},
-        {"brand": "moroccan", "pattern": "", "amount": 100},
-        {"brand": "olaplex", "pattern": "no. 3 bond repair", "amount": 150},
-        {"brand": "olaplex", "pattern": "no. 6", "amount": 150},
-        {"brand": "olaplex", "pattern": "no. 7", "amount": 150},
-        {"brand": "olaplex", "pattern": "", "amount": 100},
-        {"brand": "de fabulous", "pattern": "", "amount": 100},
-        {"brand": "kerafusion", "pattern": "", "amount": 100},
-        {"brand": "kanpeki", "pattern": "", "amount": 100},
-        {"brand": "guinot", "pattern": "", "max_price": 3499, "amount": 150},
-        {"brand": "guinot", "pattern": "", "min_price": 3500, "max_price": 4499, "amount": 200},
-        {"brand": "guinot", "pattern": "", "min_price": 4500, "max_price": 6999, "amount": 350},
-        {"brand": "guinot", "pattern": "", "min_price": 7000, "amount": 500},
-        {"brand": "thalgo", "pattern": "", "max_price": 4999, "amount": 100},
-        {"brand": "thalgo", "pattern": "", "min_price": 5000, "amount": 200},
+        # L'Oreal Professionnel
+        {"brand": "loreal", "brand_display": "L'Oréal Professionnel", "min_price": 1, "max_price": 2000, "amount": 50},
+        {"brand": "loreal", "brand_display": "L'Oréal Professionnel", "min_price": 2001, "max_price": 4000, "amount": 100},
+        {"brand": "loreal", "brand_display": "L'Oréal Professionnel", "min_price": 4001, "max_price": 999999, "amount": 150},
+        # Kanpeki
+        {"brand": "kanpeki", "brand_display": "Kanpeki", "min_price": 1, "max_price": 3000, "amount": 50},
+        {"brand": "kanpeki", "brand_display": "Kanpeki", "min_price": 3001, "max_price": 999999, "amount": 100},
+        # Kerastase
+        {"brand": "kerastase", "brand_display": "Kérastase", "min_price": 1, "max_price": 3000, "amount": 50},
+        {"brand": "kerastase", "brand_display": "Kérastase", "min_price": 3001, "max_price": 6000, "amount": 100},
+        {"brand": "kerastase", "brand_display": "Kérastase", "min_price": 6001, "max_price": 9000, "amount": 150},
+        {"brand": "kerastase", "brand_display": "Kérastase", "min_price": 9001, "max_price": 12000, "amount": 200},
+        {"brand": "kerastase", "brand_display": "Kérastase", "min_price": 12001, "max_price": 999999, "amount": 250},
+        # Olaplex
+        {"brand": "olaplex", "brand_display": "Olaplex", "min_price": 1, "max_price": 3000, "amount": 50},
+        {"brand": "olaplex", "brand_display": "Olaplex", "min_price": 3001, "max_price": 5000, "amount": 100},
+        {"brand": "olaplex", "brand_display": "Olaplex", "min_price": 5001, "max_price": 999999, "amount": 150},
+        # Kerafusion / De Fabulous
+        {"brand": "de fabulous", "brand_display": "Kerafusion / De Fabulous", "min_price": 1, "max_price": 2000, "amount": 50},
+        {"brand": "de fabulous", "brand_display": "Kerafusion / De Fabulous", "min_price": 2001, "max_price": 4000, "amount": 100},
+        {"brand": "de fabulous", "brand_display": "Kerafusion / De Fabulous", "min_price": 4001, "max_price": 999999, "amount": 150},
+        # Amazon Series
+        {"brand": "amazon series", "brand_display": "Amazon Series", "min_price": 1, "max_price": 999999, "amount": 100},
+        # QOD
+        {"brand": "qod", "brand_display": "QOD", "min_price": 1, "max_price": 999999, "amount": 100},
     ],
     "manager_milestones": [
         {"min_revenue": 1800000, "bonus_per_manager": 5000},
@@ -293,11 +280,13 @@ async def get_config() -> dict:
 
 def calc_daily_bonus(service_revenue: float, tiers: List[dict]) -> Dict[str, Any]:
     tier_hit = None
-    for t in sorted(tiers, key=lambda x: x["min"]):
-        if service_revenue >= t["min"] and service_revenue <= t["max"]:
+    total = float(service_revenue or 0.0)
+    for t in sorted(tiers, key=lambda x: x["min"], reverse=True):
+        if total >= t["min"]:
             tier_hit = t
+            break
     return {
-        "service_revenue": round(service_revenue, 2),
+        "service_revenue": round(total, 2),
         "tier": tier_hit,
         "bonus": tier_hit["bonus"] if tier_hit else 0,
     }
@@ -307,9 +296,10 @@ def calc_monthly_bonus(monthly_service_rev: float, salary: float, mults: List[di
         return {"ratio": 0, "pct": 0, "amount": 0}
     ratio = monthly_service_rev / salary
     hit = None
-    for m in sorted(mults, key=lambda x: x["min_ratio"]):
-        if ratio >= m["min_ratio"] and ratio < m["max_ratio"]:
+    for m in sorted(mults, key=lambda x: x["min_ratio"], reverse=True):
+        if ratio >= m["min_ratio"]:
             hit = m
+            break
     return {
         "ratio": round(ratio, 2),
         "pct": hit["pct"] if hit else 0,
@@ -340,16 +330,13 @@ def calc_product_incentive(item_name: str, brand: str, net_price: float, qty: fl
     name_lc = item_key
     brand_lc = (brand or "").lower()
     aliases = {
-        "kerastase": ["k chroma", "k genesis", "k reflection", "k nutritive", "k specifique",
-                       "k densifique", "k blond", "k discipline", "k resistance", "k elixir",
-                       "k initialiste", "k symbiose", "k first", " keras", "elixir ultime", "kerastase"],
-        "loreal": ["l'oreal", "loreal", "serie expert", "absolut repair", "metal dx",
-                    "aminexil", "serioxyl", "vitamino", "inoa", "majirel"],
-        "redken": ["redken", "acidic", "extreme", "all soft"],
+        "loreal": ["l'oreal", "loreal", "l'oreal professionnel", "loreal professionnel", "serie expert", "absolut repair", "metal dx", "aminexil", "serioxyl", "vitamino", "inoa", "majirel"],
+        "kanpeki": ["kanpeki", "kenpeki"],
+        "kerastase": ["kerastase", "kérastase", "k chroma", "k genesis", "k reflection", "k nutritive", "k specifique", "k densifique", "k blond", "k discipline", "k resistance", "k elixir", "k initialiste", "k symbiose", "k first", " keras", "elixir ultime"],
         "olaplex": ["olaplex", "bond maintenance"],
-        "moroccan": ["moroccan", "moroccanoil"], "k18": ["k18"], "kanpeki": ["kanpeki"],
-        "guinot": ["guinot"], "thalgo": ["thalgo"],
-        "de fabulous": ["de fabulous"], "kerafusion": ["kerafusion"],
+        "de fabulous": ["de fabulous", "kerafusion"],
+        "amazon series": ["amazon", "amazone", "amazon series", "amazone series"],
+        "qod": ["qod"],
     }
     unit_price = net_price / qty if qty else 0
     for rule in rules:
@@ -417,10 +404,26 @@ async def _staff_day_product_incentive(staff_name: str, day: str, rules: List[di
 
 
 # ------------------ POS Import ------------------
-def parse_pos_row(row: dict) -> Optional[dict]:
-    date_str = parse_date_flex(row.get("Date"))
+def parse_pos_row(row: dict, fallback_date: Optional[str] = None, row_idx: int = 0) -> Optional[dict]:
+    item_name = str(row.get("Item Name") or "").strip()
+    if not item_name or item_name.lower() in ("nan", "none", "total", "subtotal", "grand total", "summary"):
+        return None
+
+    date_str = (
+        parse_date_flex(row.get("Date"))
+        or parse_date_flex(row.get("Invoice Date"))
+        or parse_date_flex(row.get("Bill Date"))
+        or parse_date_flex(row.get("Date & Time"))
+        or parse_date_flex(row.get("Txn Date"))
+        or fallback_date
+    )
     if not date_str:
         return None
+
+    inv_no = str(row.get("Invoice Number") or "").strip()
+    if not inv_no or inv_no.lower() in ("nan", "none"):
+        inv_no = f"INV-ROW-{row_idx + 1}"
+
     net_price = to_float(row.get("Net Price"))
     rate = to_float(row.get("Rate"))
     qty = to_float(row.get("Quantity")) or 1
@@ -432,6 +435,15 @@ def parse_pos_row(row: dict) -> Optional[dict]:
     gross = rate * qty
     is_full_discount = gross > 0 and net_price == 0 and total_discount > 0
 
+    vc_val = None
+    for k in ["Paid from Value Card", "Paid from VC", "Value Card Paid", "Value Card", "VC Paid", "VC", "Paid from ValueCard"]:
+        if k in row and row[k] is not None and str(row[k]).strip().lower() != "nan":
+            vc_val = to_float(row[k])
+            break
+    if vc_val is None:
+        vc_val = to_float(row.get("Other"))
+    vc_paid = max(0.0, float(vc_val or 0.0))
+
     staff = []
     for i in range(1, 5):
         name = row.get(f"Staff {i}")
@@ -439,15 +451,24 @@ def parse_pos_row(row: dict) -> Optional[dict]:
             pct = to_float(row.get(f"Staff {i} %")) or 100
             staff.append({"name": str(name).strip(), "pct": pct})
 
+    client_name = str(
+        row.get("Client")
+        or row.get("Client Name")
+        or row.get("Customer")
+        or row.get("Customer Name")
+        or row.get("Party Name")
+        or ""
+    ).strip()
+
     return {
         "id": new_id(),
         "salon": str(row.get("Salon") or "").strip(),
-        "invoice_number": str(row.get("Invoice Number") or "").strip(),
+        "invoice_number": inv_no,
         "date": date_str,
         "time": str(row.get("Time") or "").strip(),
-        "client": str(row.get("Client") or "").strip(),
-        "type": str(row.get("Type") or "").strip(),
-        "item_name": str(row.get("Item Name") or "").strip(),
+        "client": client_name,
+        "type": str(row.get("Type") or "Service").strip(),
+        "item_name": item_name,
         "category": str(row.get("Category") or "").strip(),
         "quantity": qty,
         "rate": rate,
@@ -460,36 +481,83 @@ def parse_pos_row(row: dict) -> Optional[dict]:
         "total_collection": to_float(row.get("Total Collection")),
         "cash": to_float(row.get("Cash")),
         "card": to_float(row.get("Card")),
-        "other": to_float(row.get("Other")),
+        "other": vc_paid,
         "staff": staff,
         "is_quality_failure": is_full_discount and str(row.get("Type") or "").strip().lower() == "service",
         "created_at": now_utc(),
     }
 
 async def import_csv_bytes(csv_bytes: bytes) -> Dict[str, Any]:
-    text = csv_bytes.decode("utf-8", errors="replace")
-    lines = text.splitlines()
-    header_idx = 0
-    for i, ln in enumerate(lines):
-        if "invoice number" in ln.lower() and "date" in ln.lower():
-            header_idx = i
-            break
-    trimmed = "\n".join(lines[header_idx:])
-    df = pd.read_csv(io.StringIO(trimmed))
+    df = pd.DataFrame()
+    if csv_bytes.startswith(b'PK') or csv_bytes.startswith(b'\xd0\xcf') or csv_bytes.startswith(b'\x09\x08'):
+        try:
+            df_raw = pd.read_excel(io.BytesIO(csv_bytes), header=None)
+            header_idx = 0
+            for idx, row in df_raw.iterrows():
+                row_str = " ".join([str(val).lower() for val in row.values if pd.notna(val)])
+                if ("invoice" in row_str or "bill" in row_str or "client" in row_str or "voucher" in row_str or "doc" in row_str) and ("date" in row_str or "item" in row_str or "net" in row_str or "qty" in row_str):
+                    header_idx = idx
+                    break
+            df = pd.read_excel(io.BytesIO(csv_bytes), skiprows=header_idx)
+        except Exception as ex:
+            log.error(f"Excel read error: {ex}")
+            try:
+                df = pd.read_excel(io.BytesIO(csv_bytes))
+            except Exception as ex2:
+                log.error(f"Excel fallback read error: {ex2}")
+                df = pd.DataFrame()
+    else:
+        text = csv_bytes.decode("utf-8", errors="replace")
+        lines = text.splitlines()
+        header_idx = 0
+        for i, ln in enumerate(lines[:30]):
+            ln_lc = ln.lower()
+            # Must have multiple commas (actual CSV columns) and contain key column names
+            comma_count = ln.count(",")
+            has_key_cols = (
+                ("invoice number" in ln_lc or "invoice no" in ln_lc or "bill no" in ln_lc)
+                or ("item name" in ln_lc or "item_name" in ln_lc)
+                or ("net price" in ln_lc or "net amount" in ln_lc)
+            )
+            if comma_count >= 3 and has_key_cols:
+                header_idx = i
+                break
+        log.info(f"CSV header row detected at line {header_idx}: {lines[header_idx][:80] if lines else 'N/A'}")
+        trimmed = "\n".join(lines[header_idx:])
+        try:
+            df = pd.read_csv(io.StringIO(trimmed), on_bad_lines="skip")
+        except Exception:
+            try:
+                df = pd.read_csv(io.StringIO(text), on_bad_lines="skip")
+            except Exception as ex:
+                log.error(f"CSV read error: {ex}")
+                df = pd.DataFrame()
+
     canonical_map = {
-        "salon": "Salon", "invoice number": "Invoice Number", "date": "Date", "time": "Time",
-        "client": "Client", "phone": "Phone", "type": "Type", "item name": "Item Name",
-        "category": "Category", "hsn code": "HSN Code", "quantity": "Quantity", "rate": "Rate",
-        "membership discount": "Membership Discount", "manager discount": "Manager Discount",
-        "offer discount": "Offer Discount", "net price": "Net Price",
+        "salon": "Salon",
+        "invoice number": "Invoice Number", "invoice no": "Invoice Number", "invoice": "Invoice Number", "bill no": "Invoice Number", "bill number": "Invoice Number", "voucher no": "Invoice Number", "document no": "Invoice Number",
+        "date": "Date", "txn date": "Date", "transaction date": "Date", "invoice date": "Date", "bill date": "Date", "sales date": "Date", "sale date": "Date", "date & time": "Date", "date/time": "Date", "datetime": "Date", "posting date": "Date", "created date": "Date",
+        "time": "Time", "txn time": "Time",
+        "client": "Client", "client name": "Client", "customer": "Client", "customer name": "Client", "patient": "Client", "party name": "Client",
+        "phone": "Phone", "mobile": "Phone", "contact": "Phone",
+        "type": "Type", "item type": "Type",
+        "item name": "Item Name", "service name": "Item Name", "product name": "Item Name", "item": "Item Name", "particulars": "Item Name",
+        "category": "Category", "item category": "Category",
+        "hsn code": "HSN Code", "hsn": "HSN Code",
+        "quantity": "Quantity", "qty": "Quantity",
+        "rate": "Rate", "unit rate": "Rate", "price": "Rate",
+        "membership discount": "Membership Discount", "manager discount": "Manager Discount", "offer discount": "Offer Discount",
+        "net price": "Net Price", "net amount": "Net Price", "net value": "Net Price", "net": "Net Price", "amount": "Net Price",
         "paid from service balance": "Paid from Service Balance",
-        "paid from value card": "Paid from Value Card", "taxable price": "Taxable Price",
-        "tax": "Tax", "tax %": "Tax %", "change to advance": "Change to Advance",
-        "total collection": "Total Collection", "cash": "Cash", "card": "Card", "other": "Other",
+        "paid from value card": "Paid from Value Card", "paid from vc": "Paid from Value Card", "value card paid": "Paid from Value Card", "value card": "Paid from Value Card", "vc paid": "Paid from Value Card", "vc": "Paid from Value Card", "paid from valuecard": "Paid from Value Card",
+        "taxable price": "Taxable Price", "taxable amount": "Taxable Price", "taxable": "Taxable Price",
+        "tax": "Tax", "gst": "Tax", "tax amount": "Tax", "tax %": "Tax %",
+        "change to advance": "Change to Advance",
+        "total collection": "Total Collection", "total amount": "Total Collection", "gross total": "Total Collection", "total": "Total Collection",
+        "cash": "Cash", "card": "Card", "other": "Other",
         "paid from advance": "Paid from Advance", "paid from gift card": "Paid from Gift Card",
-        "staff 1": "Staff 1", "staff 1 %": "Staff 1 %", "staff 2": "Staff 2",
-        "staff 2 %": "Staff 2 %", "staff 3": "Staff 3", "staff 3 %": "Staff 3 %",
-        "staff 4": "Staff 4", "staff 4 %": "Staff 4 %",
+        "staff 1": "Staff 1", "staff 1 %": "Staff 1 %", "staff 2": "Staff 2", "staff 2 %": "Staff 2 %",
+        "staff 3": "Staff 3", "staff 3 %": "Staff 3 %", "staff 4": "Staff 4", "staff 4 %": "Staff 4 %",
     }
     new_cols = []
     for c in df.columns:
@@ -498,51 +566,65 @@ async def import_csv_bytes(csv_bytes: bytes) -> Dict[str, Any]:
     df.columns = new_cols
 
     records = []
-    for _, r in df.iterrows():
-        parsed = parse_pos_row(r.to_dict())
+    last_date = datetime.now().strftime("%Y-%m-%d")
+    for row_idx, (_, r) in enumerate(df.iterrows()):
+        parsed = parse_pos_row(r.to_dict(), fallback_date=last_date, row_idx=row_idx)
         if parsed:
+            if parsed.get("date"):
+                last_date = parsed["date"]
             records.append(parsed)
     if not records:
         return {"imported": 0, "quality_failures": 0}
 
     async with async_session() as session:
-        # Dedupe check
-        invoice_ids = list({r["invoice_number"] for r in records if r["invoice_number"]})
-        existing_keys = set()
-        if invoice_ids:
-            q = select(POSTransaction.invoice_number, POSTransaction.item_name, POSTransaction.date).where(
-                POSTransaction.invoice_number.in_(invoice_ids)
+        new_records = []
+        staff_names = set()
+
+        log.info(f"import_csv_bytes: {len(records)} parsed records to process")
+
+        # Collect all unique invoice numbers being uploaded
+        invoice_numbers = list({rec["invoice_number"] for rec in records})
+        log.info(f"import_csv_bytes: {len(invoice_numbers)} unique invoice numbers")
+
+        # Delete existing transactions for these invoices (allows clean reimport)
+        if invoice_numbers:
+            existing_ids_result = await session.execute(
+                select(POSTransaction.id).where(POSTransaction.invoice_number.in_(invoice_numbers))
             )
-            result = await session.execute(q)
-            for row in result.all():
-                existing_keys.add((row[0], row[1], row[2]))
+            existing_ids = [r[0] for r in existing_ids_result.all()]
+            if existing_ids:
+                await session.execute(
+                    delete(POSTransactionStaff).where(POSTransactionStaff.transaction_id.in_(existing_ids))
+                )
+                await session.execute(
+                    delete(POSTransaction).where(POSTransaction.id.in_(existing_ids))
+                )
+                log.info(f"import_csv_bytes: deleted {len(existing_ids)} existing rows for reimport")
 
-        new_records = [
-            r for r in records
-            if (r["invoice_number"], r["item_name"], r["date"]) not in existing_keys
-        ]
-
-        if new_records:
-            staff_names = set()
-            for rec in new_records:
-                staff_list = rec.pop("staff", [])
-                txn = POSTransaction(**rec)
-                session.add(txn)
+        # Insert all records fresh
+        for rec in records:
+            staff_list = rec.pop("staff", [])
+            try:
+                session.add(POSTransaction(**rec))
+                new_records.append(rec)
                 for s in staff_list:
                     cname = str(s.get("name") or "").strip()
                     if cname:
                         staff_names.add(cname)
                         session.add(POSTransactionStaff(transaction_id=rec["id"], name=cname, pct=s.get("pct", 100)))
+            except Exception as ex:
+                log.error(f"Failed to insert row {rec.get('invoice_number')}: {ex}")
 
-            # Seed staff from POS
-            for name in staff_names:
-                existing = await session.execute(
-                    select(Staff).where(func.lower(func.trim(Staff.name)) == name.lower())
-                )
-                if not existing.scalar_one_or_none():
-                    session.add(Staff(id=new_id(), name=name, base_salary=25000, role="staff", created_at=now_utc()))
+        # Seed staff from POS
+        for name in staff_names:
+            existing = await session.execute(
+                select(Staff).where(func.lower(func.trim(Staff.name)) == name.lower())
+            )
+            if not existing.scalar_one_or_none():
+                session.add(Staff(id=new_id(), name=name, base_salary=25000, role="staff", created_at=now_utc()))
 
-            await session.commit()
+        await session.commit()
+        log.info(f"import_csv_bytes committed: {len(new_records)} rows inserted fresh")
 
 
         # Seed SKUs from products and auto-checkout
@@ -583,8 +665,7 @@ async def import_csv_bytes(csv_bytes: bytes) -> Dict[str, Any]:
             await session2.commit()
 
         qf = sum(1 for r in new_records if r.get("is_quality_failure"))
-        return {"imported": len(new_records), "quality_failures": qf, "pos_auto_checkouts": auto_co,
-                "skipped_duplicates": len(records) - len(new_records)}
+        return {"imported": len(new_records), "new_rows": len(new_records), "updated_rows": 0, "quality_failures": qf, "pos_auto_checkouts": auto_co}
 
 
 # ------------------ Batch helpers ------------------
@@ -839,30 +920,68 @@ async def _staff_day_revenue(staff_name: str, day: str) -> Dict[str, float]:
     staff_lc = staff_name.strip().lower()
     async with async_session() as session:
         q = (
-            select(POSTransaction.type, func.sum(POSTransaction.net_price * POSTransactionStaff.pct / 100))
+            select(
+                POSTransaction.type,
+                POSTransaction.net_price,
+                POSTransaction.other,
+                POSTransactionStaff.pct
+            )
             .join(POSTransactionStaff)
             .where(
                 POSTransaction.date == day,
                 func.lower(func.trim(POSTransactionStaff.name)) == staff_lc
             )
-            .group_by(POSTransaction.type)
         )
         result = await session.execute(q)
         service = 0.0
         retail = 0.0
         for row in result.all():
-            if str(row[0]).strip().lower() == "service":
-                service = row[1] or 0
-            elif str(row[0]).strip().lower() in ("product", "retail"):
-                retail = row[1] or 0
-    return {"service": service, "retail": retail}
+            t_type, net_price, other_val, share_pct = row[0], row[1] or 0.0, row[2] or 0.0, row[3] or 100.0
+            t_type_str = str(t_type).strip().lower()
+            if t_type_str == "service":
+                eligible_amt = calc_eligible_service_amount(net_price, other_val)
+                service += calc_staff_eligible_value(eligible_amt, share_pct)
+            elif t_type_str in ("product", "retail"):
+                retail += net_price * (share_pct / 100.0)
+    return {"service": round(service, 2), "retail": round(retail, 2)}
+
+async def _staff_month_revenue(staff_name: str, month: str) -> Dict[str, float]:
+    staff_lc = staff_name.strip().lower()
+    async with async_session() as session:
+        q = (
+            select(
+                POSTransaction.type,
+                POSTransaction.net_price,
+                POSTransaction.other,
+                POSTransactionStaff.pct
+            )
+            .join(POSTransactionStaff)
+            .where(
+                POSTransaction.date.like(f"{month}%"),
+                func.lower(func.trim(POSTransactionStaff.name)) == staff_lc
+            )
+        )
+        result = await session.execute(q)
+        service = 0.0
+        retail = 0.0
+        for row in result.all():
+            t_type, net_price, other_val, share_pct = row[0], row[1] or 0.0, row[2] or 0.0, row[3] or 100.0
+            t_type_str = str(t_type).strip().lower()
+            if t_type_str == "service":
+                eligible_amt = calc_eligible_service_amount(net_price, other_val)
+                service += calc_staff_eligible_value(eligible_amt, share_pct)
+            elif t_type_str in ("product", "retail"):
+                retail += net_price * (share_pct / 100.0)
+    return {"service": round(service, 2), "retail": round(retail, 2)}
 
 @api.get("/incentives/daily")
 async def incentives_daily(day: str):
     await _auto_sync_staff_from_pos()
     cfg = await get_config()
     async with async_session() as session:
-        result = await session.execute(select(Staff))
+        result = await session.execute(
+            select(Staff).where(func.lower(Staff.role) != "owner", ~func.lower(Staff.name).contains("abhimanyu"))
+        )
         staff_list = result.scalars().all()
     out = []
     for s in staff_list:
@@ -919,11 +1038,11 @@ async def incentives_daily_details(staff_name: str, day: str):
         for r in rows:
             share_row = next((s for s in r.staff_shares if s.name.strip().lower() == staff_lc), None)
             share_pct = share_row.pct if share_row else 100.0
-            share_value = round((r.net_price or 0) * (share_pct / 100), 2)
             
             t_type = (r.type or "").strip().lower()
             incentive = 0.0
             if t_type in ("product", "retail"):
+                share_value = round((r.net_price or 0) * (share_pct / 100), 2)
                 brand = ""
                 sku_result = await session.execute(select(SKU).where(SKU.name == (r.item_name or "").strip()))
                 sku = sku_result.scalar_one_or_none()
@@ -934,6 +1053,8 @@ async def incentives_daily_details(staff_name: str, day: str):
                 total_retail += share_value
                 total_incentive += incentive
             else:
+                eligible_svc_amt = calc_eligible_service_amount(r.net_price or 0.0, r.other or 0.0)
+                share_value = calc_staff_eligible_value(eligible_svc_amt, share_pct)
                 total_service += share_value
             
             details.append({
@@ -941,10 +1062,13 @@ async def incentives_daily_details(staff_name: str, day: str):
                 "date": r.date,
                 "invoice_number": r.invoice_number,
                 "client": r.client,
+                "client_name": r.client,
                 "item_name": r.item_name,
                 "type": r.type,
                 "quantity": r.quantity,
                 "net_price": r.net_price,
+                "value_card_paid": r.other or 0.0,
+                "eligible_service_amount": calc_eligible_service_amount(r.net_price or 0.0, r.other or 0.0) if t_type not in ("product", "retail") else r.net_price,
                 "share_pct": share_pct,
                 "share_value": share_value,
                 "incentive": incentive,
@@ -1006,6 +1130,7 @@ async def incentives_monthly_details(staff_name: str, month: str):
             t_type = (r.type or "").strip().lower()
             incentive = 0.0
             if t_type in ("product", "retail"):
+                share_value = round((r.net_price or 0) * (share_pct / 100), 2)
                 brand = ""
                 sku_result = await session.execute(select(SKU).where(SKU.name == (r.item_name or "").strip()))
                 sku = sku_result.scalar_one_or_none()
@@ -1016,6 +1141,8 @@ async def incentives_monthly_details(staff_name: str, month: str):
                 total_retail += share_value
                 total_incentive += incentive
             else:
+                eligible_svc_amt = calc_eligible_service_amount(r.net_price or 0.0, r.other or 0.0)
+                share_value = calc_staff_eligible_value(eligible_svc_amt, share_pct)
                 total_service += share_value
             
             details.append({
@@ -1023,10 +1150,13 @@ async def incentives_monthly_details(staff_name: str, month: str):
                 "date": r.date,
                 "invoice_number": r.invoice_number,
                 "client": r.client,
+                "client_name": r.client,
                 "item_name": r.item_name,
                 "type": r.type,
                 "quantity": r.quantity,
                 "net_price": r.net_price,
+                "value_card_paid": r.other or 0.0,
+                "eligible_service_amount": calc_eligible_service_amount(r.net_price or 0.0, r.other or 0.0) if t_type not in ("product", "retail") else r.net_price,
                 "share_pct": share_pct,
                 "share_value": share_value,
                 "incentive": incentive,
@@ -1068,36 +1198,23 @@ async def incentives_monthly(month: str):
     await _auto_sync_staff_from_pos()
     cfg = await get_config()
     async with async_session() as session:
-        staff_list = (await session.execute(select(Staff))).scalars().all()
+        staff_list = (await session.execute(
+            select(Staff).where(func.lower(Staff.role) != "owner", ~func.lower(Staff.name).contains("abhimanyu"))
+        )).scalars().all()
     out = []
     for s in staff_list:
-        staff_lc = s.name.strip().lower()
-        async with async_session() as session2:
-            q = (
-                select(POSTransaction.type, func.sum(POSTransaction.net_price * POSTransactionStaff.pct / 100))
-                .join(POSTransactionStaff)
-                .where(
-                    POSTransaction.date.like(f"{month}%"),
-                    func.lower(func.trim(POSTransactionStaff.name)) == staff_lc
-                )
-                .group_by(POSTransaction.type)
-            )
-            result = await session2.execute(q)
-            service = 0.0
-            retail = 0.0
-            for row in result.all():
-                if str(row[0]).strip().lower() == "service":
-                    service = row[1] or 0
-                elif str(row[0]).strip().lower() in ("product", "retail"):
-                    retail = row[1] or 0
+        rev = await _staff_month_revenue(s.name, month)
+        service = rev["service"]
+        retail = rev["retail"]
 
-            # Calculate prepaid card sale bonuses
+        # Calculate prepaid card sale bonuses
+        async with async_session() as session2:
             tx_result = await session2.execute(
                 select(POSTransaction.item_name, POSTransactionStaff.pct)
                 .join(POSTransactionStaff)
                 .where(
                     POSTransaction.date.like(f"{month}%"),
-                    func.lower(func.trim(POSTransactionStaff.name)) == staff_lc
+                    func.lower(func.trim(POSTransactionStaff.name)) == s.name.strip().lower()
                 )
             )
             prepaid_card_bonus_sum = 0.0
@@ -1111,7 +1228,7 @@ async def incentives_monthly(month: str):
             prepaid_card_bonus_sum = round(prepaid_card_bonus_sum, 2)
 
         monthly = calc_monthly_bonus(service, s.base_salary, cfg["staff_monthly_multipliers"])
-        retail_comm = round(retail * (cfg["retail_commission_pct"] / 100), 2)
+        retail_comm = round(retail * (cfg.get("retail_commission_pct", 0) / 100), 2)
         out.append({
             "staff_id": s.id, "staff_name": s.name, "base_salary": s.base_salary,
             "monthly_service_revenue": round(service, 2), "monthly_retail_revenue": round(retail, 2),
@@ -1135,121 +1252,6 @@ async def incentives_manager(month: str):
             "bonus_per_manager": bonus["bonus"], "milestones": cfg["manager_milestones"]}
 
 # ------------------ Product Incentive Custom Mappings & Flagged Products ------------------
-
-@api.get("/incentives/unmapped-products")
-async def get_unmapped_products():
-    """Scans all Product-type POS transactions and identifies items not matching any active incentive rule."""
-    cfg = await get_config()
-    rules = cfg.get("product_incentives", [])
-
-    async with async_session() as session:
-        map_rows = (await session.execute(select(ProductIncentiveMapping))).scalars().all()
-        mappings = {m.pos_item_name: m.to_dict() for m in map_rows}
-
-        q = select(
-            POSTransaction.item_name,
-            func.count(POSTransaction.id).label("txn_count"),
-            func.avg(POSTransaction.net_price).label("avg_net_price"),
-            func.max(POSTransaction.date).label("last_sold_date")
-        ).where(
-            func.lower(func.trim(POSTransaction.type)) == "product",
-            POSTransaction.item_name != None,
-            POSTransaction.item_name != ""
-        ).group_by(POSTransaction.item_name)
-
-        result = await session.execute(q)
-        rows = result.all()
-
-        unmapped = []
-        for item_name, txn_count, avg_net_price, last_sold_date in rows:
-            clean_name = (item_name or "").strip()
-            if not clean_name:
-                continue
-            item_key = clean_name.lower()
-
-            sku_res = await session.execute(select(SKU).where(SKU.name == clean_name))
-            sku = sku_res.scalar_one_or_none()
-            brand = sku.vendor_name or sku.category or sku.brand or "" if sku else ""
-
-            inc_amount = calc_product_incentive(clean_name, brand, avg_net_price or 0, 1, rules, mappings)
-            is_mapped_custom = item_key in mappings
-
-            if inc_amount == 0 and not is_mapped_custom:
-                unmapped.append({
-                    "item_name": clean_name,
-                    "item_key": item_key,
-                    "brand": brand,
-                    "sales_count": txn_count,
-                    "avg_net_price": round(float(avg_net_price or 0), 2),
-                    "last_sold_date": last_sold_date or "",
-                })
-
-        unmapped.sort(key=lambda x: x["sales_count"], reverse=True)
-        return {"unmapped": unmapped, "total": len(unmapped)}
-
-@api.get("/incentives/product-mappings")
-async def get_product_mappings():
-    """Retrieve all custom saved product incentive mappings."""
-    async with async_session() as session:
-        result = await session.execute(select(ProductIncentiveMapping).order_by(ProductIncentiveMapping.display_name))
-        mappings = result.scalars().all()
-        return [m.to_dict() for m in mappings]
-
-@api.post("/incentives/product-mappings")
-async def save_product_mapping(payload: ProductMappingIn, user: dict = Depends(require_role("owner", "manager", "admin"))):
-    """Save or update a persistent product-to-incentive mapping."""
-    clean_name = payload.pos_item_name.strip()
-    if not clean_name:
-        raise HTTPException(400, "pos_item_name is required")
-    item_key = clean_name.lower()
-
-    async with async_session() as session:
-        existing = (await session.execute(
-            select(ProductIncentiveMapping).where(ProductIncentiveMapping.pos_item_name == item_key)
-        )).scalar_one_or_none()
-
-        now = now_utc()
-        if existing:
-            existing.display_name = clean_name
-            existing.brand = (payload.brand or "").strip().lower()
-            existing.pattern = (payload.pattern or "").strip().lower()
-            existing.sku_id = payload.sku_id
-            existing.amount = payload.amount
-            existing.min_price = payload.min_price
-            existing.max_price = payload.max_price
-            existing.updated_at = now
-            mapping_obj = existing
-        else:
-            mapping_obj = ProductIncentiveMapping(
-                id=new_id(),
-                pos_item_name=item_key,
-                display_name=clean_name,
-                brand=(payload.brand or "").strip().lower(),
-                pattern=(payload.pattern or "").strip().lower(),
-                sku_id=payload.sku_id,
-                amount=payload.amount,
-                min_price=payload.min_price,
-                max_price=payload.max_price,
-                created_at=now,
-                updated_at=now,
-            )
-            session.add(mapping_obj)
-
-        await session.commit()
-        return mapping_obj.to_dict()
-
-@api.delete("/incentives/product-mappings/{mapping_id}")
-async def delete_product_mapping(mapping_id: str, user: dict = Depends(require_role("owner", "manager", "admin"))):
-    """Delete a custom product incentive mapping."""
-    async with async_session() as session:
-        mapping = (await session.execute(
-            select(ProductIncentiveMapping).where(ProductIncentiveMapping.id == mapping_id)
-        )).scalar_one_or_none()
-        if not mapping:
-            raise HTTPException(404, "Mapping not found")
-        await session.delete(mapping)
-        await session.commit()
-    return {"status": "success", "id": mapping_id}
 
 # ------------------ Vendors ------------------
 @api.get("/vendors")
@@ -1783,7 +1785,9 @@ async def monthly_payouts(month: str):
     await _auto_sync_staff_from_pos()
     cfg = await get_config()
     async with async_session() as session:
-        staff_list = (await session.execute(select(Staff).order_by(Staff.name))).scalars().all()
+        staff_list = (await session.execute(
+            select(Staff).where(func.lower(Staff.role) != "owner", ~func.lower(Staff.name).contains("abhimanyu")).order_by(Staff.name)
+        )).scalars().all()
     
     out = []
     for s in staff_list:

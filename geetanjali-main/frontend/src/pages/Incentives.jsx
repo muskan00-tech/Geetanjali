@@ -67,6 +67,18 @@ function CumulativeReport({ onViewDetails }) {
               ))}
               {data.rows.length === 0 && <tr><td colSpan={6} className="text-center text-slate-500 font-medium py-8">All caught up — no unpaid incentives.</td></tr>}
             </tbody>
+            {data.rows.length > 0 && (
+              <tfoot className="bg-slate-100/80 font-extrabold border-t-2 border-slate-300">
+                <tr>
+                  <td className="py-3.5 px-4 text-slate-950">TOTAL</td>
+                  <td className="text-right tabular py-3.5 px-4 text-slate-800">{data.rows.reduce((s, r) => s + (r.unpaid_days_count || 0), 0)}</td>
+                  <td className="text-right tabular py-3.5 px-4 text-slate-800">{money(data.rows.reduce((s, r) => s + (r.cumulative_service || 0), 0))}</td>
+                  <td className="text-right tabular py-3.5 px-4 text-amber-900">{money(data.rows.reduce((s, r) => s + (r.cumulative_bonus || 0), 0))}</td>
+                  <td className="text-right tabular py-3.5 px-4 text-emerald-900">{money(data.rows.reduce((s, r) => s + (r.cumulative_product_incentive || 0), 0))}</td>
+                  <td className="text-right tabular py-3.5 px-4 text-slate-950 bg-amber-500/10">{money(data.rows.reduce((s, r) => s + (r.cumulative_total_due || 0), 0))}</td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       )}
@@ -119,11 +131,11 @@ export default function Incentives() {
   useEffect(() => {
     api.get("/pos/dates").then((r) => {
       setDates(r.data);
-      if (r.data[0]) setDay(r.data[0]);
+      if (r.data[0]) {
+        setDay(r.data[0]);
+        setMonth(r.data[0].slice(0, 7));
+      }
     });
-    api.get("/incentives/unmapped-products").then((r) => {
-      setUnmappedCount(r.data?.total || 0);
-    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -154,25 +166,6 @@ export default function Incentives() {
         <div className="lss-overline">Incentive Engine</div>
         <h1 className="font-serif-lux text-3xl sm:text-4xl font-bold text-slate-950 tracking-tight mt-1">Live Incentive Calculator</h1>
       </div>
-
-      {unmappedCount > 0 && (
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 flex items-center justify-between gap-4 shadow-xs">
-          <div className="flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
-            <div>
-              <span className="font-extrabold text-sm block">
-                {unmappedCount} POS product item{unmappedCount > 1 ? "s" : ""} need incentive rule mapping
-              </span>
-              <span className="text-xs text-amber-800">
-                Uploaded POS sales contain product names that don't match any formula rule yet. Map them once to auto-calculate incentives.
-              </span>
-            </div>
-          </div>
-          <Link to="/config" className="lss-btn-gold px-3.5 py-1.5 text-xs font-bold shrink-0 inline-flex items-center gap-1">
-            <Sparkles className="w-3.5 h-3.5" /> Map Products
-          </Link>
-        </div>
-      )}
 
       {/* Animated Sliding Tabs */}
       <div className="flex gap-2 border-b border-slate-200 pb-2 overflow-x-auto relative">
@@ -278,6 +271,19 @@ export default function Incentives() {
                         </tr>
                       ))}
                     </tbody>
+                    {daily.rows.length > 0 && (
+                      <tfoot className="bg-slate-100/80 font-extrabold border-t-2 border-slate-300">
+                        <tr>
+                          <td className="py-3.5 px-4 text-slate-950">TOTAL</td>
+                          <td className="text-right tabular py-3.5 px-4 text-slate-800">{money(daily.rows.reduce((s, r) => s + (r.service_revenue || 0), 0))}</td>
+                          <td className="text-right tabular py-3.5 px-4 text-slate-800">{money(daily.rows.reduce((s, r) => s + (r.retail_revenue || 0), 0))}</td>
+                          <td className="py-3.5 px-4 text-slate-400 text-xs">—</td>
+                          <td className="text-right tabular py-3.5 px-4 text-amber-900">{money(daily.rows.reduce((s, r) => s + (r.daily_bonus || 0), 0))}</td>
+                          <td className="text-right tabular py-3.5 px-4 text-emerald-900">{money(daily.rows.reduce((s, r) => s + (r.product_incentive || 0), 0))}</td>
+                          <td className="text-right tabular py-3.5 px-4 text-slate-950 bg-amber-500/10">{money(daily.rows.reduce((s, r) => s + (r.total_earned || 0), 0))}</td>
+                        </tr>
+                      </tfoot>
+                    )}
                   </table>
                 </div>
               </>
@@ -291,6 +297,7 @@ export default function Incentives() {
               <DatePicker
                 type="month"
                 value={month}
+                posDates={dates}
                 onChange={(e) => setMonth(e.target.value)}
               />
             </div>
@@ -340,6 +347,21 @@ export default function Incentives() {
                       </tr>
                     ))}
                   </tbody>
+                  {monthly.rows.length > 0 && (
+                    <tfoot className="bg-slate-100/80 font-extrabold border-t-2 border-slate-300">
+                      <tr>
+                        <td className="py-3.5 px-4 text-slate-950">TOTAL</td>
+                        <td className="text-right tabular py-3.5 px-4 text-slate-800">{money(monthly.rows.reduce((s, r) => s + (r.base_salary || 0), 0))}</td>
+                        <td className="text-right tabular py-3.5 px-4 text-slate-800">{money(monthly.rows.reduce((s, r) => s + (r.monthly_service_revenue || 0), 0))}</td>
+                        <td className="py-3.5 px-4 text-slate-400 text-xs text-right">—</td>
+                        <td className="py-3.5 px-4 text-slate-400 text-xs text-right">—</td>
+                        <td className="text-right tabular py-3.5 px-4 text-slate-800">{money(monthly.rows.reduce((s, r) => s + (r.efficiency_bonus || 0), 0))}</td>
+                        <td className="text-right tabular py-3.5 px-4 text-emerald-900">{money(monthly.rows.reduce((s, r) => s + (r.retail_commission || 0), 0))}</td>
+                        <td className="text-right tabular py-3.5 px-4 text-amber-900">{money(monthly.rows.reduce((s, r) => s + (r.prepaid_card_bonus || 0), 0))}</td>
+                        <td className="text-right tabular py-3.5 px-4 text-slate-950 bg-amber-500/10">{money(monthly.rows.reduce((s, r) => s + (r.total || 0), 0))}</td>
+                      </tr>
+                    </tfoot>
+                  )}
                 </table>
               </div>
             )}
@@ -497,6 +519,14 @@ export default function Incentives() {
                     <div className="text-sm space-y-1.5 text-slate-800">
                       {detailType === "daily" ? (
                         <>
+                          <div className="bg-amber-100/60 p-2 rounded-lg text-xs text-amber-950 font-medium mb-1">
+                            <span className="font-bold">Formula Applied: </span>
+                            Eligible Service Amount = Net Amount − (50% × Value Card Amount). Incentive tier evaluated on daily sum of eligible services.
+                          </div>
+                          <div>
+                            <span className="font-semibold text-slate-600">Daily Eligible Service Total: </span>
+                            <span className="font-extrabold text-slate-950">{money(detailData.total_service)}</span>
+                          </div>
                           <div>
                             <span className="font-semibold text-slate-600">Daily Bonus: </span>
                             {detailData.tier ? (
@@ -557,6 +587,7 @@ export default function Incentives() {
                             <th className="p-3">Item Name</th>
                             <th className="p-3">Type</th>
                             <th className="p-3 text-right">Net Price</th>
+                            <th className="p-3 text-right">Value Card</th>
                             <th className="p-3 text-right">Share %</th>
                             <th className="p-3 text-right">Share Val</th>
                             {detailType === "daily" && <th className="p-3 text-right">Product Inc</th>}
@@ -575,6 +606,7 @@ export default function Incentives() {
                                 </span>
                               </td>
                               <td className="p-3 text-right tabular text-xs font-medium">{money(t.net_price)}</td>
+                              <td className="p-3 text-right tabular text-xs font-medium text-amber-900">{money(t.value_card_paid || 0)}</td>
                               <td className="p-3 text-right tabular text-xs font-bold text-slate-600">{t.share_pct}%</td>
                               <td className="p-3 text-right tabular text-xs font-bold text-slate-900">{money(t.share_value)}</td>
                               {detailType === "daily" && (

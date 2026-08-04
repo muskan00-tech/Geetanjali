@@ -812,8 +812,8 @@ async def _auto_sync_staff_from_pos():
     salary_defaults = [
         ("suhail khan", (50000, "Manager", "manager")),
         ("khan", (50000, "Manager", "manager")),
-        ("uhd suhail", (41000, "Stylist", "stylist")),
-        ("suhail", (41000, "Stylist", "stylist")),
+        ("uhd suhail", (50000, "Stylist", "stylist")),
+        ("suhail", (50000, "Stylist", "stylist")),
         ("siraj", (43000, "Stylist", "stylist")),
         ("jahangir", (35000, "Stylist", "stylist")),
         ("ashu", (70000, "Stylist", "stylist")),

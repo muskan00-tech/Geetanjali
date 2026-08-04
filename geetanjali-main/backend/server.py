@@ -860,13 +860,6 @@ async def _auto_sync_staff_from_pos():
             if not existing:
                 session.add(Staff(id=new_id(), name=cname, base_salary=c_sal, role=c_role, department=c_desig, created_at=now_utc()))
                 added = True
-            else:
-                # Upgrade existing base_salary if default 25000
-                if existing.base_salary != c_sal:
-                    existing.base_salary = c_sal
-                    existing.department = c_desig
-                    existing.role = c_role
-                    added = True
 
         if added:
             await session.commit()

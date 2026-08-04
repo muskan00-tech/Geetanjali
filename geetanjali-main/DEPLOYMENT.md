@@ -1,142 +1,117 @@
-# 🚀 Enterprise Production Deployment Guide for Ubuntu 24.04 VPS
+# 🚀 Production Deployment Guide: Supabase + Render + Firebase Hosting
 
-This document outlines the complete production deployment architecture for the **Geetanjali Salon ERP** running 100% on **PostgreSQL**, **Docker**, **FastAPI**, **React 19**, and **Nginx**.
-
----
-
-## 🏗️ Architecture Overview
-
-```
-                      Internet / Users
-                             │
-                             ▼ (Ports 80 / 443)
-              ┌──────────────────────────────┐
-              │    Nginx (Reverse Proxy)     │
-              └──────────────┬───────────────┘
-                             │
-            ┌────────────────┴────────────────┐
-            ▼                                 ▼
-┌───────────────────────┐         ┌───────────────────────┐
-│   React 19 Frontend   │         │    FastAPI Backend    │
-│   Static Nginx Assets │         │  Gunicorn + Uvicorn   │
-└───────────────────────┘         └───────────┬───────────┘
-                                              │
-                                              ▼ (Port 5432)
-                                  ┌───────────────────────┐
-                                  │ PostgreSQL 16 Alpine  │
-                                  │ Persistent DB Volume  │
-                                  └───────────────────────┘
-```
+This document outlines the complete production deployment architecture for **Geetanjali Salon ERP**.
 
 ---
 
-## 📋 Step 1: Initial Ubuntu 24.04 VPS Preparation
+## 🏗️ Deployment Architecture Overview
 
-Connect to your Ubuntu VPS via SSH:
-```bash
-ssh root@<YOUR_VPS_IP>
 ```
-
-Update system packages and install Docker & Docker Compose:
-```bash
-sudo apt update && sudo apt upgrade -y
-sudo apt install -y curl git certbot python3-certbot-nginx
-
-# Install Docker
-curl -fsSL https://get.docker.com | sh
-sudo systemctl enable --now docker
+ ┌─────────────────────────────────────────────────────────────┐
+ │                   Firebase Hosting                          │
+ │             (React 19 SPA Frontend)                         │
+ │     https://geetanjali-salon.web.app                        │
+ └──────────────────────────────┬──────────────────────────────┘
+                                │
+                                │ API Requests (HTTPS)
+                                ▼
+ ┌─────────────────────────────────────────────────────────────┐
+ │                   Render Web Service                        │
+ │                (FastAPI Python Backend)                     │
+ │     https://geetanjali-backend.onrender.com                 │
+ └──────────────────────────────┬──────────────────────────────┘
+                                │
+                                │ Async Database Connection (Port 5432)
+                                ▼
+ ┌─────────────────────────────────────────────────────────────┐
+ │                  Supabase Cloud Database                    │
+ │               (Managed PostgreSQL 15/16)                    │
+ └─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 📥 Step 2: Clone Repository & Configure Environment
+## 🗄️ Step 1: Database Setup on Supabase
 
-Clone the repository to `/var/www/geetanjali`:
-```bash
-cd /var/www
-git clone https://github.com/muskan00-tech/Geetanjali.git geetanjali
-cd /var/www/geetanjali
-```
+1. **Create a Supabase Project**:
+   - Log in to [Supabase](https://supabase.com/).
+   - Click **New Project** and select your region (e.g., Singapore / South Asia).
+   - Set a strong database password and create the project.
 
-Copy the environment template and set production secrets:
-```bash
-cp .env.example .env
-nano .env
-```
+2. **Retrieve Connection String**:
+   - Go to **Project Settings** > **Database**.
+   - Under **Connection string**, select **URI** and choose **Transaction Pooler** or **Direct Connection**.
+   - Your connection string format for `asyncpg`:
+     ```ini
+     PG_DATABASE_URL=postgresql+asyncpg://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres?sslmode=require
+     ```
 
-Ensure `PG_DATABASE_URL` is set to the internal Docker PostgreSQL service:
-```ini
-PG_DATABASE_URL=postgresql+asyncpg://geetanjali_user:SecurePassword123!@postgres:5432/geetanjali_db
-JWT_SECRET=your_super_strong_production_jwt_secret_key_here
-ENVIRONMENT=production
-CORS_ORIGINS=https://yourdomain.com
-```
+3. **Database Migrations & Initial Setup**:
+   - When the backend starts up on Render for the first time, SQLAlchemy / asyncpg will automatically initialize all required tables in Supabase.
 
 ---
 
-## 🐳 Step 3: Launch Production Docker Stack
+## ⚡ Step 2: Backend Deployment on Render
 
-Build and start all production containers (PostgreSQL, FastAPI Backend, React Frontend, Nginx):
-```bash
-docker compose up -d --build
-```
+1. **Push Code to GitHub**:
+   - Ensure your latest code is pushed to your GitHub repository (`main` branch).
 
-Verify that all containers are healthy:
-```bash
-docker compose ps
-```
+2. **Connect Repository to Render**:
+   - Log in to [Render](https://render.com/).
+   - Click **New +** > **Blueprint** (or **Web Service**).
+   - Connect your GitHub repository `muskan00-tech/Geetanjali`.
+   - Render will detect `render.yaml` automatically.
 
-Check backend startup logs:
-```bash
-docker compose logs -f backend
-```
+3. **Configure Environment Variables in Render**:
+   - Go to your backend service dashboard on Render > **Environment**.
+   - Set the following variables:
+     - `PG_DATABASE_URL`: `postgresql+asyncpg://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres?sslmode=require`
+     - `JWT_SECRET`: Generate a secure random secret key.
+     - `CORS_ORIGINS`: `https://geetanjali-salon.web.app,https://geetanjali-salon.firebaseapp.com`
+     - `ENVIRONMENT`: `production`
+     - `OWNER_EMAIL`: `owner@geetanjalisalon.com`
+     - `OWNER_PASSWORD`: `YourSecurePassword123!`
 
----
-
-## 🔒 Step 4: SSL Certificate Setup (Let's Encrypt HTTPS)
-
-To attach a domain name and enable HTTPS via Let's Encrypt:
-```bash
-sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
-```
-
----
-
-## 💾 Step 5: Setup Automatic PostgreSQL Backups (Cron Job)
-
-Make the backup script executable:
-```bash
-chmod +x scripts/backup_postgres.sh
-```
-
-Add a daily cron job running at 2:00 AM:
-```bash
-crontab -e
-```
-
-Add the following line:
-```cron
-0 2 * * * /bin/bash /var/www/geetanjali/scripts/backup_postgres.sh >> /var/log/geetanjali_backup.log 2>&1
-```
+4. **Deploy Backend**:
+   - Click **Deploy Latest Commit**.
+   - Note down your Render backend URL (e.g., `https://geetanjali-backend.onrender.com`).
 
 ---
 
-## 🔄 Updating / Deploying Code Updates
+## 🌐 Step 3: Frontend Deployment on Firebase Hosting
 
-To pull and deploy future code updates with zero downtime:
-```bash
-cd /var/www/geetanjali
-git pull origin main
-docker compose up -d --build
-```
+1. **Install Firebase CLI**:
+   ```bash
+   npm install -g firebase-tools
+   ```
+
+2. **Log in to Firebase**:
+   ```bash
+   firebase login
+   ```
+
+3. **Configure Production Backend URL**:
+   - In `frontend/.env.production`, set your Render backend URL:
+     ```ini
+     REACT_APP_BACKEND_URL=https://geetanjali-backend.onrender.com
+     ```
+
+4. **Build Frontend & Deploy**:
+   ```bash
+   cd frontend
+   npm run build
+   firebase deploy --only hosting
+   ```
+
+5. **Verify Deployment**:
+   - Access your live frontend at `https://geetanjali-salon.web.app` or your custom domain on Firebase Hosting.
 
 ---
 
-## ⏪ Rollback Procedure
+## 🔄 CI/CD & Updating Code
 
-If a deployment needs to be rolled back to a previous commit:
-```bash
-git log -n 5 --oneline
-git checkout <PREVIOUS_COMMIT_HASH>
-docker compose up -d --build
-```
+1. **Backend Updates (Render)**:
+   - Render automatically rebuilds and redeploys when you push to the `main` branch.
+
+2. **Frontend Updates (Firebase)**:
+   - Run `npm run build && firebase deploy --only hosting` inside the `frontend/` folder to push new frontend releases.

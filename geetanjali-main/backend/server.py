@@ -810,8 +810,8 @@ async def quality_failures():
 async def _auto_sync_staff_from_pos():
     """Auto-seed any staff member present in POS transaction shares into Staff table with Rudrapur July salary structure."""
     salary_defaults = [
-        ("suhail khan", (50000, "Manager", "manager")),
-        ("khan", (50000, "Manager", "manager")),
+        ("suhail khan", (41000, "Manager", "manager")),
+        ("khan", (41000, "Manager", "manager")),
         ("uhd suhail", (50000, "Stylist", "stylist")),
         ("suhail", (50000, "Stylist", "stylist")),
         ("siraj", (43000, "Stylist", "stylist")),

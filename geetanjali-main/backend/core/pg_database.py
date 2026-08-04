@@ -82,8 +82,9 @@ async def _migrate_sku_columns(conn):
             pass
 
 async def init_pg():
-    """Create all tables on startup. Fall back to SQLite if PostgreSQL connection fails."""
+    """Initialize PostgreSQL tables on startup and automatically migrate any existing SQLite data."""
     import core.pg_models  # noqa: F401
+    import os
     from sqlalchemy import text
     
     try:
@@ -94,18 +95,21 @@ async def init_pg():
                 await conn.execute(text("ALTER TABLE product_incentive_mappings ADD COLUMN sku_id VARCHAR(64)"))
             except Exception:
                 pass
-        log.info(f"Database initialized successfully with URL: {_engine.url}")
-    except Exception as e:
-        log.warning(f"Failed to connect to PostgreSQL ({e}). Falling back to SQLite database: sqlite+aiosqlite:///./geetanjali.db")
-        create_engine_and_session("sqlite+aiosqlite:///./geetanjali.db")
-        async with _engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-            await _migrate_sku_columns(conn)
+        log.info(f"PostgreSQL database initialized successfully with URL: {_engine.url}")
+        
+        # Auto-migrate data from local SQLite if available
+        sqlite_paths = ["geetanjali.db", "backend/geetanjali.db", "../geetanjali.db"]
+        found_sqlite = next((p for p in sqlite_paths if os.path.exists(p)), None)
+        if found_sqlite:
             try:
-                await conn.execute(text("ALTER TABLE product_incentive_mappings ADD COLUMN sku_id VARCHAR(64)"))
-            except Exception:
-                pass
-        log.info("SQLite database initialized successfully.")
+                from core.migrate_sqlite_to_pg import migrate_data_sqlite_to_pg
+                log.info(f"Existing SQLite database found at '{found_sqlite}'. Initiating auto-migration to PostgreSQL...")
+                await migrate_data_sqlite_to_pg(found_sqlite)
+            except Exception as mig_err:
+                log.warning(f"SQLite -> PostgreSQL migration warning: {mig_err}")
+    except Exception as e:
+        log.error(f"Failed to connect to PostgreSQL ({e}). Please ensure PostgreSQL is running or set PG_DATABASE_URL.")
+        raise e
 
 
 async def close_pg():

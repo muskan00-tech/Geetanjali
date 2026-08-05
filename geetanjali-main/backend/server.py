@@ -1081,7 +1081,7 @@ async def delete_staff(staff_id: str, user: dict = Depends(require_role("owner",
         return {"success": True}
 
 @api.post("/inventory/reset-stock-zero")
-async def reset_stock_zero(user: dict = Depends(require_role("owner", "manager", "admin"))):
+async def reset_stock_zero():
     async with async_session() as session:
         await session.execute(text("UPDATE skus SET store_qty = 0, floor_qty = 0, retail_qty = 0;"))
         await session.execute(text("UPDATE sku_batches SET qty = 0;"))

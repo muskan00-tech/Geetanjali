@@ -377,7 +377,10 @@ def calc_product_incentive(item_name: str, brand: str, net_price: float, qty: fl
     # 1. Check custom saved product mappings first (exact POS product name match)
     if mappings and item_key in mappings:
         map_entry = mappings[item_key]
-        return float(map_entry.get("amount", 0)) * qty
+        if isinstance(map_entry, dict):
+            return float(map_entry.get("amount", 0) or 0) * qty
+        elif map_entry and hasattr(map_entry, "amount"):
+            return float(getattr(map_entry, "amount", 0) or 0) * qty
 
     name_lc = item_key
     brand_lc = (brand or "").lower()
@@ -1926,7 +1929,7 @@ async def _cumulative_data(date_from: str, date_to: str, only_unpaid: bool):
             payouts_set = {(p.staff_id, p.payout_date) for p in payouts_res.scalars().all()}
 
             map_rows = (await session.execute(select(ProductIncentiveMapping))).scalars().all()
-            mappings = {m.pos_item_name: m.to_dict() for m in map_rows}
+            mappings = {str(m.pos_item_name).strip().lower(): m.to_dict() for m in map_rows if m and getattr(m, "pos_item_name", None)}
             
             sku_rows = (await session.execute(select(SKU.name, SKU.brand))).all()
             sku_brand_map = {str(name).strip(): str(brand or "").strip() for name, brand in sku_rows if name}

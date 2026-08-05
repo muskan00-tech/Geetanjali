@@ -1175,8 +1175,8 @@ async def incentives_daily(day: str):
         # Batch 2: Product mappings + SKU brand map
         map_rows = (await session.execute(select(ProductIncentiveMapping))).scalars().all()
         mappings = {m.pos_item_name: m.to_dict() for m in map_rows}
-        sku_rows = (await session.execute(select(SKU))).scalars().all()
-        sku_brand_map = {s.name.strip(): (s.vendor_name or s.category or "") for s in sku_rows if s.name}
+        sku_rows = (await session.execute(select(SKU.name, SKU.brand, SKU.vendor_name, SKU.category))).all()
+        sku_brand_map = {str(name).strip(): str(brand or vendor or cat or "").strip() for name, brand, vendor, cat in sku_rows if name}
 
         # Batch 3: All POS transactions + staff shares for day
         q = (

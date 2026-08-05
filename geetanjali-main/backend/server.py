@@ -1910,112 +1910,113 @@ import traceback
 async def _cumulative_data(date_from: str, date_to: str, only_unpaid: bool):
     try:
         cfg = await get_config()
-    product_rules = cfg.get("product_incentives", [])
+        product_rules = cfg.get("product_incentives", [])
 
-    async with async_session() as session:
-        staff_list = (await session.execute(select(Staff))).scalars().all()
-        dates_result = await session.execute(
-            select(distinct(POSTransaction.date)).where(
-                POSTransaction.date >= date_from, POSTransaction.date <= date_to
-            ).order_by(POSTransaction.date)
-        )
-        dates = [r[0] for r in dates_result.all()]
-        payouts_res = await session.execute(
-            select(Payout).where(Payout.payout_date >= date_from, Payout.payout_date <= date_to)
-        )
-        payouts_set = {(p.staff_id, p.payout_date) for p in payouts_res.scalars().all()}
-
-        map_rows = (await session.execute(select(ProductIncentiveMapping))).scalars().all()
-        mappings = {m.pos_item_name: m.to_dict() for m in map_rows}
-        
-        sku_rows = (await session.execute(select(SKU.name, SKU.brand))).all()
-        sku_brand_map = {str(name).strip(): str(brand or "").strip() for name, brand in sku_rows if name}
-
-        q = (
-            select(
-                POSTransactionStaff.name,
-                POSTransaction.date,
-                POSTransaction.type,
-                POSTransaction.net_price,
-                POSTransaction.other,
-                POSTransactionStaff.pct,
-                POSTransaction.item_name,
-                POSTransaction.quantity,
+        async with async_session() as session:
+            staff_list = (await session.execute(select(Staff))).scalars().all()
+            dates_result = await session.execute(
+                select(distinct(POSTransaction.date)).where(
+                    POSTransaction.date >= date_from, POSTransaction.date <= date_to
+                ).order_by(POSTransaction.date)
             )
-            .join(POSTransactionStaff, POSTransactionStaff.transaction_id == POSTransaction.id)
-            .where(
-                POSTransaction.date >= date_from,
-                POSTransaction.date <= date_to
+            dates = [r[0] for r in dates_result.all()]
+            payouts_res = await session.execute(
+                select(Payout).where(Payout.payout_date >= date_from, Payout.payout_date <= date_to)
             )
-        )
-        tx_rows = (await session.execute(q)).all()
+            payouts_set = {(p.staff_id, p.payout_date) for p in payouts_res.scalars().all()}
 
-    staff_day_rev = defaultdict(float)
-    staff_day_prod_inc = defaultdict(float)
+            map_rows = (await session.execute(select(ProductIncentiveMapping))).scalars().all()
+            mappings = {m.pos_item_name: m.to_dict() for m in map_rows}
+            
+            sku_rows = (await session.execute(select(SKU.name, SKU.brand))).all()
+            sku_brand_map = {str(name).strip(): str(brand or "").strip() for name, brand in sku_rows if name}
 
-    for row in tx_rows:
-        staff_lc = str(row[0] or "").strip().lower()
-        t_date = str(row[1] or "")
-        t_type = str(row[2] or "").strip().lower()
-        net_price = float(row[3] or 0.0)
-        other_val = float(row[4] or 0.0)
-        share_pct = float(row[5] or 100.0)
-        item_name = str(row[6] or "")
-        qty = float(row[7] or 1.0)
+            q = (
+                select(
+                    POSTransactionStaff.name,
+                    POSTransaction.date,
+                    POSTransaction.type,
+                    POSTransaction.net_price,
+                    POSTransaction.other,
+                    POSTransactionStaff.pct,
+                    POSTransaction.item_name,
+                    POSTransaction.quantity,
+                )
+                .join(POSTransactionStaff, POSTransactionStaff.transaction_id == POSTransaction.id)
+                .where(
+                    POSTransaction.date >= date_from,
+                    POSTransaction.date <= date_to
+                )
+            )
+            tx_rows = (await session.execute(q)).all()
 
-        key = (staff_lc, t_date)
-        if t_type == "service":
-            eligible_amt = calc_eligible_service_amount(net_price, other_val)
-            staff_day_rev[key] += calc_staff_eligible_value(eligible_amt, share_pct)
-        elif t_type in ("product", "retail"):
-            brand = sku_brand_map.get(item_name.strip(), "")
-            prod_val = calc_product_incentive(item_name, brand, net_price, qty, product_rules, mappings)
-            if prod_val > 0:
-                staff_day_prod_inc[key] += prod_val * (share_pct / 100.0)
+        staff_day_rev = defaultdict(float)
+        staff_day_prod_inc = defaultdict(float)
 
-    rows = []
-    for s in staff_list:
-        s_lc = s.name.strip().lower()
-        total_service = total_bonus = total_product = 0.0
-        unpaid_days = []
-        paid_days = []
+        for row in tx_rows:
+            staff_lc = str(row[0] or "").strip().lower()
+            t_date = str(row[1] or "")
+            t_type = str(row[2] or "").strip().lower()
+            net_price = float(row[3] or 0.0)
+            other_val = float(row[4] or 0.0)
+            share_pct = float(row[5] or 100.0)
+            item_name = str(row[6] or "")
+            qty = float(row[7] or 1.0)
 
-        for day in dates:
-            key = (s_lc, day)
-            service_rev = round(staff_day_rev.get(key, 0.0), 2)
-            pi = round(staff_day_prod_inc.get(key, 0.0), 2)
+            key = (staff_lc, t_date)
+            if t_type == "service":
+                eligible_amt = calc_eligible_service_amount(net_price, other_val)
+                staff_day_rev[key] += calc_staff_eligible_value(eligible_amt, share_pct)
+            elif t_type in ("product", "retail"):
+                brand = sku_brand_map.get(item_name.strip(), "")
+                prod_val = calc_product_incentive(item_name, brand, net_price, qty, product_rules, mappings)
+                if prod_val > 0:
+                    staff_day_prod_inc[key] += prod_val * (share_pct / 100.0)
 
-            b = calc_daily_bonus(service_rev, cfg["staff_daily_tiers"])
-            day_total = b["bonus"] + pi
-            is_paid = (s.id, day) in payouts_set
+        rows = []
+        for s in staff_list:
+            s_lc = s.name.strip().lower()
+            total_service = total_bonus = total_product = 0.0
+            unpaid_days = []
+            paid_days = []
 
-            if day_total <= 0:
-                continue
-            if is_paid:
-                paid_days.append({"day": day, "amount": day_total})
-            else:
-                unpaid_days.append({
-                    "day": day,
-                    "service": service_rev,
-                    "bonus": b["bonus"],
-                    "product_incentive": pi,
-                    "total": day_total,
+            for day in dates:
+                key = (s_lc, day)
+                service_rev = round(staff_day_rev.get(key, 0.0), 2)
+                pi = round(staff_day_prod_inc.get(key, 0.0), 2)
+
+                b = calc_daily_bonus(service_rev, cfg["staff_daily_tiers"])
+                day_total = b["bonus"] + pi
+                is_paid = (s.id, day) in payouts_set
+
+                if day_total <= 0:
+                    continue
+                if is_paid:
+                    paid_days.append({"day": day, "amount": day_total})
+                else:
+                    unpaid_days.append({
+                        "day": day,
+                        "service": service_rev,
+                        "bonus": b["bonus"],
+                        "product_incentive": pi,
+                        "total": day_total,
+                    })
+                    total_service += service_rev
+                    total_bonus += b["bonus"]
+                    total_product += pi
+
+            if not only_unpaid or unpaid_days:
+                rows.append({
+                    "staff_id": s.id,
+                    "staff_name": s.name,
+                    "unpaid_days_count": len(unpaid_days),
+                    "unpaid_days": unpaid_days,
+                    "cumulative_service": round(total_service, 2),
+                    "cumulative_bonus": round(total_bonus, 2),
+                    "cumulative_product_incentive": round(total_product, 2),
+                    "cumulative_total_due": round(total_bonus + total_product, 2),
+                    "paid_days_count": len(paid_days),
                 })
-                total_service += service_rev
-                total_bonus += b["bonus"]
-                total_product += pi
-
-        if not only_unpaid or unpaid_days:
-            rows.append({
-                "staff_id": s.id,
-                "staff_name": s.name,
-                "unpaid_days_count": len(unpaid_days),
-                "unpaid_days": unpaid_days,
-                "cumulative_service": round(total_service, 2),
-                "cumulative_bonus": round(total_bonus, 2),
-                "cumulative_product_incentive": round(total_product, 2),
-                "cumulative_total_due": round(total_bonus + total_product, 2),
-            })
         return {"from": date_from, "to": date_to, "rows": rows}
     except Exception as e:
         return {"from": date_from, "to": date_to, "rows": [], "error": str(e), "trace": traceback.format_exc()}

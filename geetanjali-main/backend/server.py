@@ -1080,6 +1080,14 @@ async def delete_staff(staff_id: str, user: dict = Depends(require_role("owner",
         await session.commit()
         return {"success": True}
 
+@api.post("/inventory/reset-stock-zero")
+async def reset_stock_zero(user: dict = Depends(require_role("owner", "manager", "admin"))):
+    async with async_session() as session:
+        await session.execute(text("UPDATE skus SET store_qty = 0, floor_qty = 0, retail_qty = 0;"))
+        await session.execute(text("UPDATE sku_batches SET qty = 0;"))
+        await session.commit()
+    return {"ok": True, "message": "All inventory stock reset to 0"}
+
 # ------------------ Incentives ------------------
 async def _staff_day_revenue(staff_name: str, day: str) -> Dict[str, float]:
     staff_lc = staff_name.strip().lower()

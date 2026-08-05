@@ -95,6 +95,8 @@ def create_engine_and_session(url: str):
         connect_args = {}
         if USE_SSL or "supabase" in url.lower():
             connect_args["ssl"] = "require"
+            connect_args["statement_cache_size"] = 0
+            connect_args["prepared_statement_cache_size"] = 0
             
         _engine = create_async_engine(
             url,

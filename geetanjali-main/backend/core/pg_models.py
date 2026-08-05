@@ -159,7 +159,11 @@ class SKUBatch(Base):
 # ═══════════════════════════════════════════════════════════════
 class POSTransaction(Base):
     __tablename__ = "pos_transactions"
-    __table_args__ = (Index("ix_pos_date_inv", "date", "invoice_number"),)
+    __table_args__ = (
+        Index("ix_pos_date_inv", "date", "invoice_number"),
+        Index("ix_pos_date", "date"),
+        Index("ix_pos_type", "type"),
+    )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     salon: Mapped[str] = mapped_column(String(200), default="")

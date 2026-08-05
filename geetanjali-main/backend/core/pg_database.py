@@ -177,6 +177,9 @@ async def init_pg():
             await _migrate_sku_columns(conn)
             try:
                 await conn.execute(text('ALTER TABLE "product_incentive_mappings" ADD COLUMN IF NOT EXISTS sku_id VARCHAR(64)'))
+                await conn.execute(text('CREATE INDEX IF NOT EXISTS ix_pos_date ON pos_transactions (date);'))
+                await conn.execute(text('CREATE INDEX IF NOT EXISTS ix_pos_type ON pos_transactions (type);'))
+                await conn.execute(text('CREATE INDEX IF NOT EXISTS ix_pts_name ON pos_transaction_staff (name);'))
             except Exception:
                 pass
         log.info(f"PostgreSQL database connected and tables initialized successfully. [URL: {_engine.url.render_as_string(hide_password=True)}]")

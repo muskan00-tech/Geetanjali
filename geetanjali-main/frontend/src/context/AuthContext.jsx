@@ -1,64 +1,59 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import api from "../lib/api";
-import { auth, googleProvider, signInWithPopup, firebaseSignOut } from "../lib/firebase";
+import { 
+  auth, 
+  googleProvider, 
+  signInWithPopup, 
+  signInWithEmailAndPassword, 
+  firebaseSignOut,
+  onAuthStateChanged 
+} from "../lib/firebase";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null); // null=loading, false=guest, obj=user
 
+  const formatUser = async (fbUser) => {
+    if (!fbUser) return false;
+    const token = await fbUser.getIdToken();
+    const isOwner = fbUser.email?.toLowerCase().includes("owner");
+    return {
+      id: fbUser.uid,
+      email: fbUser.email,
+      name: fbUser.displayName || (isOwner ? "Salon Owner" : "Salon Manager"),
+      role: isOwner ? "owner" : "manager",
+      token: token
+    };
+  };
+
   useEffect(() => {
-    let mounted = true;
-    const token = localStorage.getItem("lss_token");
-    if (!token) {
-      setUser(false);
-      return;
-    }
-    api
-      .get("/auth/me")
-      .then((r) => mounted && setUser(r.data))
-      .catch(() => {
-        if (mounted) {
-          localStorage.removeItem("lss_token");
-          setUser(false);
-        }
-      });
-    return () => (mounted = false);
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      if (fbUser) {
+        const userData = await formatUser(fbUser);
+        setUser(userData);
+      } else {
+        setUser(false);
+      }
+    });
+    return () => unsubscribe();
   }, []);
 
   const login = async (email, password) => {
-    const { data } = await api.post("/auth/login", { email, password });
-    if (data.token) localStorage.setItem("lss_token", data.token);
-    setUser(data);
-    return data;
+    const res = await signInWithEmailAndPassword(auth, email, password);
+    const userData = await formatUser(res.user);
+    setUser(userData);
+    return userData;
   };
 
   const loginWithGoogle = async () => {
-    if (!process.env.REACT_APP_FIREBASE_API_KEY) {
-      throw new Error("Firebase Google Sign-In requires REACT_APP_FIREBASE_API_KEY.");
-    }
     const res = await signInWithPopup(auth, googleProvider);
-    const token = await res.user.getIdToken();
-    const userData = {
-      id: res.user.uid,
-      email: res.user.email,
-      name: res.user.displayName || res.user.email.split("@")[0],
-      role: "owner",
-      token: token,
-    };
-    localStorage.setItem("lss_token", token);
+    const userData = await formatUser(res.user);
     setUser(userData);
     return userData;
   };
 
   const logout = async () => {
-    try {
-      await api.post("/auth/logout");
-    } catch {}
-    try {
-      await firebaseSignOut(auth);
-    } catch {}
-    localStorage.removeItem("lss_token");
+    await firebaseSignOut(auth);
     setUser(false);
   };
 

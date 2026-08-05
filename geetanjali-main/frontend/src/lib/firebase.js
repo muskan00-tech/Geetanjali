@@ -4,18 +4,22 @@ import {
   GoogleAuthProvider, 
   signInWithPopup, 
   signInWithEmailAndPassword, 
-  signOut as firebaseSignOut 
+  signOut as firebaseSignOut,
+  onAuthStateChanged
 } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyDummyKeyForGeetanjali707cc",
+  apiKey: "AIzaSyBg3g5eKXpZ4L5y91nTs6F8nWkn4wCDFpc",
   authDomain: "geetanjali-707cc.firebaseapp.com",
   projectId: "geetanjali-707cc",
   storageBucket: "geetanjali-707cc.firebasestorage.app",
+  messagingSenderId: "1029593440676",
+  appId: "1:1029593440676:web:b5d07a0b64a92c03e7e131",
+  measurementId: "G-VLW2SNHJM8"
 };
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
-export { signInWithPopup, signInWithEmailAndPassword, firebaseSignOut };
+export { signInWithPopup, signInWithEmailAndPassword, firebaseSignOut, onAuthStateChanged };

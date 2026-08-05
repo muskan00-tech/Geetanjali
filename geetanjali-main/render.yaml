@@ -13,7 +13,7 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ORIGINS
-        value: https://geetanjali-salon.web.app,https://geetanjali-salon.firebaseapp.com
+        value: https://geetanjali-707cc.web.app,https://geetanjali-707cc.firebaseapp.com,https://geetanjali-salon.web.app,https://geetanjali-salon.firebaseapp.com
       - key: PG_DATABASE_URL
         sync: false
       - key: ENVIRONMENT

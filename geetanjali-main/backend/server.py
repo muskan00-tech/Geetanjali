@@ -3289,8 +3289,8 @@ async def startup():
                 elif not verify_pw(pw, existing.password_hash):
                     existing.password_hash = hash_pw(pw)
 
-            await seed_user("OWNER_EMAIL", "owner@geetanjalisalon.com", "OWNER_PASSWORD", "OwnerSecurePass123!", "Salon Owner", "owner")
-            await seed_user("MANAGER_EMAIL", "manager@geetanjalisalon.com", "MANAGER_PASSWORD", "ManagerSecurePass123!", "Salon Manager", "manager")
+            await seed_user("OWNER_EMAIL", "owner@luxurysalon.com", "OWNER_PASSWORD", "owner123", "Salon Owner", "owner")
+            await seed_user("MANAGER_EMAIL", "manager@luxurysalon.com", "MANAGER_PASSWORD", "manager123", "Salon Manager", "manager")
 
             # Seed config
             existing_cfg = (await session.execute(select(AppConfig).where(AppConfig.id == "master"))).scalar_one_or_none()

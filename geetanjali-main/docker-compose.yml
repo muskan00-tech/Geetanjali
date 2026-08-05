@@ -33,10 +33,10 @@ services:
       - ENVIRONMENT=production
       - LOG_LEVEL=INFO
       - CORS_ORIGINS=${CORS_ORIGINS:-*}
-      - OWNER_EMAIL=${OWNER_EMAIL:-owner@geetanjalisalon.com}
-      - OWNER_PASSWORD=${OWNER_PASSWORD:-OwnerSecurePass123!}
-      - MANAGER_EMAIL=${MANAGER_EMAIL:-manager@geetanjalisalon.com}
-      - MANAGER_PASSWORD=${MANAGER_PASSWORD:-ManagerSecurePass123!}
+      - OWNER_EMAIL=${OWNER_EMAIL:-owner@luxurysalon.com}
+      - OWNER_PASSWORD=${OWNER_PASSWORD:-owner123}
+      - MANAGER_EMAIL=${MANAGER_EMAIL:-manager@luxurysalon.com}
+      - MANAGER_PASSWORD=${MANAGER_PASSWORD:-manager123}
     ports:
       - "8000:8000"
     depends_on:

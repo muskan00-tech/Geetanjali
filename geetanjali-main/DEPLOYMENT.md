@@ -13,6 +13,20 @@ The complete production deployment architecture for **Geetanjali Salon ERP**.
 
 ---
 
+## 🔑 Default Production Login Credentials
+
+### 1️⃣ Owner Account (Full Administrative Access)
+- **Email**: `owner@luxurysalon.com`
+- **Password**: `owner123`
+- **Role**: `owner`
+
+### 2️⃣ Manager Account (Operational Access)
+- **Email**: `manager@luxurysalon.com`
+- **Password**: `manager123`
+- **Role**: `manager`
+
+---
+
 ## 🏗️ Deployment Architecture
 
 ```

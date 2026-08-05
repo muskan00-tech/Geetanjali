@@ -46,6 +46,10 @@ def create_engine_and_session(url: str):
     if "sqlite" in url:
         _engine = create_async_engine(url, echo=False)
     else:
+        connect_args = {}
+        if "supabase" in url.lower() or "sslmode=" in url.lower() or "ssl=" in url.lower():
+            connect_args["ssl"] = "require"
+            
         _engine = create_async_engine(
             url,
             echo=False,
@@ -53,6 +57,7 @@ def create_engine_and_session(url: str):
             max_overflow=int(os.environ.get("DB_MAX_OVERFLOW", 20)),
             pool_pre_ping=True,
             pool_recycle=1800,
+            connect_args=connect_args,
         )
     _async_session_factory = async_sessionmaker(_engine, class_=AsyncSession, expire_on_commit=False)
 

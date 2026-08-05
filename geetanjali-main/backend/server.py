@@ -1795,6 +1795,11 @@ async def _cumulative_data(date_from: str, date_to: str, only_unpaid: bool):
             ).order_by(POSTransaction.date)
         )
         dates = [r[0] for r in dates_result.all()]
+        payouts_res = await session.execute(
+            select(Payout).where(Payout.payout_date >= date_from, Payout.payout_date <= date_to)
+        )
+        payouts_set = {(p.staff_id, p.payout_date) for p in payouts_res.scalars().all()}
+
     rows = []
     for s in staff_list:
         total_service = total_bonus = total_product = 0.0
@@ -1805,12 +1810,9 @@ async def _cumulative_data(date_from: str, date_to: str, only_unpaid: bool):
             b = calc_daily_bonus(rev["service"], cfg["staff_daily_tiers"])
             pi = await _staff_day_product_incentive(s.name, day, cfg.get("product_incentives", []))
             day_total = b["bonus"] + pi
-            async with async_session() as session2:
-                payout = (await session2.execute(
-                    select(Payout).where(Payout.staff_id == s.id, Payout.payout_date == day)
-                )).scalar_one_or_none()
+            is_paid = (s.id, day) in payouts_set
             if day_total <= 0: continue
-            if payout:
+            if is_paid:
                 paid_days.append({"day": day, "amount": day_total})
             else:
                 unpaid_days.append({"day": day, "service": rev["service"], "bonus": b["bonus"],

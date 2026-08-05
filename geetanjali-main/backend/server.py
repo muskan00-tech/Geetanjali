@@ -816,7 +816,7 @@ async def get_owner_dashboard(user: dict = Depends(get_current_user)):
     async with async_session() as session:
         skus_res = await session.execute(select(SKU))
         skus = skus_res.scalars().all()
-        working_capital = sum(float(s.cost_price or 0) * (float(s.store_qty or 0) + float(s.floor_qty or 0)) for s in skus)
+        working_capital = sum(float(s.unit_cost or 0) * (float(s.store_qty or 0) + float(s.floor_qty or 0)) for s in skus)
         sku_count = len(skus)
         
         qual_res = await session.execute(

@@ -1905,8 +1905,11 @@ async def purchase_invoice_upload(file: UploadFile = File(...), user: dict = Dep
     return {"invoices_created": created}
 
 # ------------------ Reports ------------------
+import traceback
+
 async def _cumulative_data(date_from: str, date_to: str, only_unpaid: bool):
-    cfg = await get_config()
+    try:
+        cfg = await get_config()
     product_rules = cfg.get("product_incentives", [])
 
     async with async_session() as session:
@@ -2012,9 +2015,10 @@ async def _cumulative_data(date_from: str, date_to: str, only_unpaid: bool):
                 "cumulative_bonus": round(total_bonus, 2),
                 "cumulative_product_incentive": round(total_product, 2),
                 "cumulative_total_due": round(total_bonus + total_product, 2),
-                "paid_days_count": len(paid_days),
             })
-    return {"from": date_from, "to": date_to, "rows": rows}
+        return {"from": date_from, "to": date_to, "rows": rows}
+    except Exception as e:
+        return {"from": date_from, "to": date_to, "rows": [], "error": str(e), "trace": traceback.format_exc()}
 
 @api.get("/reports/cumulative-payouts")
 async def cumulative_payouts(date_from: str, date_to: str, only_unpaid: bool = True):

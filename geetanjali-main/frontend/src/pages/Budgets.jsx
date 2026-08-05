@@ -3,8 +3,7 @@ import { Calculator, Plus } from "lucide-react";
 import { toast } from "sonner";
 import SearchableSelect from "@/components/ui/SearchableSelect";
 import DatePicker from "@/components/ui/DatePicker";
-
-const BACKEND = process.env.REACT_APP_BACKEND_URL || "http://localhost:8000";
+import api, { errMsg } from "../lib/api";
 
 export default function BudgetsPage() {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -24,8 +23,8 @@ export default function BudgetsPage() {
 
   const fetchBudgets = async () => {
     try {
-      const res = await fetch(`${BACKEND}/api/budgets?month=${month}`, { credentials: "include" });
-      if (res.ok) setBudgets(await res.json());
+      const res = await api.get(`/budgets?month=${month}`);
+      setBudgets(res.data || []);
     } catch (e) {
       console.error(e);
     }
@@ -33,8 +32,8 @@ export default function BudgetsPage() {
 
   const fetchVariance = async () => {
     try {
-      const res = await fetch(`${BACKEND}/api/budgets/variance?month=${month}`, { credentials: "include" });
-      if (res.ok) setVariance((await res.json()).variance || []);
+      const res = await api.get(`/budgets/variance?month=${month}`);
+      setVariance(res.data?.variance || []);
     } catch (e) {
       console.error(e);
     }
@@ -42,8 +41,8 @@ export default function BudgetsPage() {
 
   const fetchSkus = async () => {
     try {
-      const res = await fetch(`${BACKEND}/api/inventory/skus`, { credentials: "include" });
-      if (res.ok) setSkus(await res.json());
+      const res = await api.get("/inventory/skus");
+      setSkus(res.data || []);
     } catch (e) {
       console.error(e);
     }

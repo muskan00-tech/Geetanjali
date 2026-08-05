@@ -53,29 +53,15 @@ export default function AttendancePage() {
 
   const handleSaveAllSalaries = async () => {
     setSalarySaving(true);
-    let saved = 0, deleted = 0, errors = 0;
     try {
-      for (const row of salaryRows) {
-        if (!row.name.trim()) continue;
-        try {
-          if (row._delete && !row._new) {
-            await api.delete(`/staff/${row.id}`);
-            deleted++;
-          } else if (!row._delete) {
-            if (row._new) {
-              await api.post("/staff", { name: row.name, base_salary: Number(row.base_salary), department: row.department, role: row.department === "MANAGER" ? "manager" : "staff" });
-            } else {
-              await api.put(`/staff/${row.id}`, { name: row.name, base_salary: Number(row.base_salary), department: row.department });
-            }
-            saved++;
-          }
-        } catch { errors++; }
-      }
-      toast.success(`Saved ${saved} staff profiles${deleted > 0 ? `, removed ${deleted}` : ""}`);
+      const res = await api.post("/staff/bulk-update", salaryRows);
+      toast.success(`Saved ${res.data.saved} staff profiles${res.data.deleted > 0 ? `, removed ${res.data.deleted}` : ""}`);
       setShowSalaryModal(false);
       fetchStaff();
       fetchAttendance();
       fetchSummary();
+    } catch (err) {
+      toast.error(errMsg(err));
     } finally {
       setSalarySaving(false);
     }

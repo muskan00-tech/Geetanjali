@@ -1,43 +1,78 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { 
-  auth, 
-  googleProvider, 
-  signInWithPopup, 
-  signInWithEmailAndPassword, 
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import {
+  auth,
+  googleProvider,
+  signInWithPopup,
+  signInWithEmailAndPassword,
   firebaseSignOut,
-  onAuthStateChanged 
+  onAuthStateChanged
 } from "../lib/firebase";
+import { pingBackend } from "../lib/api";
 
 const AuthContext = createContext(null);
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null); // null=loading, false=guest, obj=user
+// Resolve user from localStorage instantly — no async wait on page load
+function getUserFromStorage() {
+  const token = localStorage.getItem("lss_token");
+  const cached = localStorage.getItem("lss_user");
+  if (token && cached) {
+    try { return JSON.parse(cached); } catch { return null; }
+  }
+  return null;
+}
 
-  const formatUser = async (fbUser) => {
+export function AuthProvider({ children }) {
+  // Start with cached user immediately to avoid loading flicker
+  const [user, setUser] = useState(() => getUserFromStorage());
+  const tokenRefreshTimer = useRef(null);
+
+  const formatUser = async (fbUser, forceRefresh = false) => {
     if (!fbUser) return false;
-    const token = await fbUser.getIdToken();
+    // Only call getIdToken when needed (avoid network on every render)
+    const token = await fbUser.getIdToken(forceRefresh);
     localStorage.setItem("lss_token", token);
     const isOwner = fbUser.email?.toLowerCase().includes("owner");
-    return {
+    const userData = {
       id: fbUser.uid,
       email: fbUser.email,
       name: fbUser.displayName || (isOwner ? "Salon Owner" : "Salon Manager"),
       role: isOwner ? "owner" : "manager",
-      token: token
+      token,
     };
+    localStorage.setItem("lss_user", JSON.stringify(userData));
+    return userData;
   };
 
   useEffect(() => {
+    // Ping backend immediately to wake Render from cold sleep
+    pingBackend();
+
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
         const userData = await formatUser(fbUser);
         setUser(userData);
+
+        // Auto-refresh Firebase token every 55 minutes (tokens expire at 60min)
+        if (tokenRefreshTimer.current) clearInterval(tokenRefreshTimer.current);
+        tokenRefreshTimer.current = setInterval(async () => {
+          try {
+            const refreshed = await fbUser.getIdToken(true);
+            localStorage.setItem("lss_token", refreshed);
+            setUser((prev) => prev ? { ...prev, token: refreshed } : prev);
+          } catch { /* ignore */ }
+        }, 55 * 60 * 1000);
       } else {
         localStorage.removeItem("lss_token");
+        localStorage.removeItem("lss_user");
         setUser(false);
+        if (tokenRefreshTimer.current) clearInterval(tokenRefreshTimer.current);
       }
     });
-    return () => unsubscribe();
+
+    return () => {
+      unsubscribe();
+      if (tokenRefreshTimer.current) clearInterval(tokenRefreshTimer.current);
+    };
   }, []);
 
   const login = async (email, password) => {
@@ -56,9 +91,9 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     localStorage.removeItem("lss_token");
-    try {
-      await firebaseSignOut(auth);
-    } catch {}
+    localStorage.removeItem("lss_user");
+    if (tokenRefreshTimer.current) clearInterval(tokenRefreshTimer.current);
+    try { await firebaseSignOut(auth); } catch { }
     setUser(false);
   };
 

@@ -3,8 +3,7 @@ import { ShoppingCart, Plus, ArrowRight, Clock, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import DatePicker from "@/components/ui/DatePicker";
 import SearchableSelect from "@/components/ui/SearchableSelect";
-
-const BACKEND = process.env.REACT_APP_BACKEND_URL || "http://localhost:8000";
+import api, { errMsg } from "../lib/api";
 
 export default function ProcurementPage() {
   const [pos, setPos] = useState([]);
@@ -28,8 +27,8 @@ export default function ProcurementPage() {
 
   const fetchPOs = async () => {
     try {
-      const res = await fetch(`${BACKEND}/api/procurement/purchase-orders`, { credentials: "include" });
-      if (res.ok) setPos(await res.json());
+      const res = await api.get("/procurement/purchase-orders");
+      setPos(res.data || []);
     } catch (e) {
       console.error(e);
     }
@@ -37,8 +36,8 @@ export default function ProcurementPage() {
 
   const fetchVendors = async () => {
     try {
-      const res = await fetch(`${BACKEND}/api/vendors`, { credentials: "include" });
-      if (res.ok) setVendors(await res.json());
+      const res = await api.get("/vendors");
+      setVendors(res.data || []);
     } catch (e) {
       console.error(e);
     }
@@ -46,8 +45,8 @@ export default function ProcurementPage() {
 
   const fetchSkus = async () => {
     try {
-      const res = await fetch(`${BACKEND}/api/inventory/skus`, { credentials: "include" });
-      if (res.ok) setSkus(await res.json());
+      const res = await api.get("/inventory/skus");
+      setSkus(res.data || []);
     } catch (e) {
       console.error(e);
     }
@@ -55,10 +54,9 @@ export default function ProcurementPage() {
 
   const fetchReorderAlerts = async () => {
     try {
-      const res = await fetch(`${BACKEND}/api/inventory/purchase-orders`, { credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
-        setReorderAlerts(data.filter((d) => d.needs_reorder));
+      const res = await api.get("/inventory/purchase-orders");
+      if (res.data) {
+        setReorderAlerts(res.data.filter((d) => d.needs_reorder));
       }
     } catch (e) {
       console.error(e);

@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Search, Filter, RefreshCw, FileText, ArrowDownRight, ArrowUpRight, ShieldCheck, Clock } from "lucide-react";
-import { money } from "../lib/api";
+import api, { money } from "../lib/api";
 import { motion } from "framer-motion";
-
-const BACKEND = process.env.REACT_APP_BACKEND_URL || "http://localhost:8000";
 
 export default function StockLedgerPage() {
   const [logs, setLogs] = useState([]);
@@ -18,11 +16,8 @@ export default function StockLedgerPage() {
   const fetchLedger = async () => {
     setLoading(true);
     try {
-      const url = `${BACKEND}/api/inventory/ledger?transaction_type=${txnType}`;
-      const res = await fetch(url, { credentials: "include" });
-      if (res.ok) {
-        setLogs(await res.json());
-      }
+      const res = await api.get(`/inventory/ledger?transaction_type=${txnType}`);
+      setLogs(res.data || []);
     } catch (e) {
       console.error(e);
     } finally {

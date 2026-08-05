@@ -7,7 +7,6 @@ import OwnerDashboard from "@/pages/OwnerDashboard";
 import ManagerDashboard from "@/pages/ManagerDashboard";
 import POSUpload from "@/pages/POSUpload";
 import Incentives from "@/pages/Incentives";
-import Payouts from "@/pages/Payouts";
 import InventoryHub from "@/pages/InventoryHub";
 import Quality from "@/pages/Quality";
 import Config from "@/pages/Config";
@@ -71,7 +70,6 @@ function App() {
               <Route path="/analytics" element={<SalesAnalytics />} />
               <Route path="/pos" element={<POSUpload />} />
               <Route path="/incentives" element={<Incentives />} />
-              <Route path="/payouts" element={<Payouts />} />
               <Route path="/inventory" element={<InventoryHub />} />
               <Route path="/audit" element={<StockAudit />} />
               <Route path="/cogs" element={<COGS />} />

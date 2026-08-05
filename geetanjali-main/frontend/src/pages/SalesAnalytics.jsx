@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import DatePicker from "@/components/ui/DatePicker";
 import { motion } from "framer-motion";
+import api from "../lib/api";
 import {
   ResponsiveContainer,
   BarChart,
@@ -27,8 +28,6 @@ import {
   CartesianGrid,
 } from "recharts";
 
-const BACKEND = process.env.REACT_APP_BACKEND_URL || "http://localhost:8000";
-
 const COLORS = ["#0F172A", "#D97706", "#10B981", "#6366F1", "#EC4899", "#8B5CF6"];
 
 export default function SalesAnalyticsPage() {
@@ -41,11 +40,11 @@ export default function SalesAnalyticsPage() {
     setPageLoading(true);
     try {
       const [bRes, sRes] = await Promise.all([
-        fetch(`${BACKEND}/api/analytics/sales`, { credentials: "include" }),
-        fetch(`${BACKEND}/api/analytics/staff-performance?month=${month}`, { credentials: "include" }),
+        api.get("/analytics/sales"),
+        api.get(`/analytics/staff-performance?month=${month}`),
       ]);
-      if (bRes.ok) setSalesBreakdown((await bRes.json()).breakdown || []);
-      if (sRes.ok) setStaffPerf((await sRes.json()).staff || []);
+      setSalesBreakdown(bRes.data?.breakdown || []);
+      setStaffPerf(sRes.data?.staff || []);
     } catch (e) {
       console.error(e);
     } finally {

@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { ClipboardCheck, Play, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
-
-const BACKEND = process.env.REACT_APP_BACKEND_URL || "http://localhost:8000";
+import api, { errMsg } from "../lib/api";
 
 export default function StockAuditPage() {
   const [history, setHistory] = useState([]);
@@ -19,8 +18,8 @@ export default function StockAuditPage() {
 
   const fetchHistory = async () => {
     try {
-      const res = await fetch(`${BACKEND}/api/audit/history`, { credentials: "include" });
-      if (res.ok) setHistory(await res.json());
+      const res = await api.get("/audit/history");
+      setHistory(res.data || []);
     } catch (e) {
       console.error(e);
     }
@@ -28,16 +27,14 @@ export default function StockAuditPage() {
 
   const fetchSkus = async () => {
     try {
-      const res = await fetch(`${BACKEND}/api/inventory/skus`, { credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
-        setSkus(data);
-        const initialCounts = {};
-        data.forEach((s) => {
-          initialCounts[s.id] = (s.store_qty || 0) + (s.floor_qty || 0) + (s.retail_qty || 0);
-        });
-        setActualCounts(initialCounts);
-      }
+      const res = await api.get("/inventory/skus");
+      const data = res.data || [];
+      setSkus(data);
+      const initialCounts = {};
+      data.forEach((s) => {
+        initialCounts[s.id] = (s.store_qty || 0) + (s.floor_qty || 0) + (s.retail_qty || 0);
+      });
+      setActualCounts(initialCounts);
     } catch (e) {
       console.error(e);
     }

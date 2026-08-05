@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   Upload, Coins, Boxes, ClipboardCheck, Building2,
-  Plus, Eye, Edit3, ArrowDownRight, ArrowUpRight, Clock, Trash2
+  Plus, Eye, Edit3, ArrowDownRight, ArrowUpRight, Clock, Trash2, Download
 } from "lucide-react";
 import api, { money, errMsg } from "../lib/api";
 import { toast } from "sonner";
@@ -106,6 +106,58 @@ export default function InventoryHub() {
     return true;
   });
 
+  const handleExportLiveInventory = () => {
+    if (!filteredProducts || filteredProducts.length === 0) {
+      toast.error("No inventory items found to export");
+      return;
+    }
+    const headers = [
+      "Vendor",
+      "Product Name",
+      "Brand",
+      "Type",
+      "Unit",
+      "Current Stock",
+      "Min Stock",
+      "Reorder Level",
+      "Cost Price (INR)",
+      "MRP (INR)",
+      "Selling Price (INR)",
+      "Total Valuation (INR)",
+      "Status"
+    ];
+    const rows = filteredProducts.map((p) => {
+      const stock = p.total_stock !== undefined ? p.total_stock : ((p.store_qty || 0) + (p.floor_qty || 0) + (p.retail_qty || 0));
+      const valuation = stock * (p.unit_cost || 0);
+      return [
+        `"${(p.vendor_name || p.vendor || "").replace(/"/g, '""')}"`,
+        `"${(p.name || "").replace(/"/g, '""')}"`,
+        `"${(p.brand || p.category || "").replace(/"/g, '""')}"`,
+        `"${(p.ledger || p.category || "retail").replace(/"/g, '""')}"`,
+        `"${(p.unit || "Piece").replace(/"/g, '""')}"`,
+        stock,
+        p.min_stock || 0,
+        p.reorder_level || 10,
+        p.unit_cost || 0,
+        p.mrp || 0,
+        p.selling_price || 0,
+        valuation.toFixed(2),
+        `"${p.status || "Active"}"`
+      ].join(",");
+    });
+
+    const csvData = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csvData], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `Geetanjali_Live_Inventory_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success(`Exported ${filteredProducts.length} live inventory items!`);
+  };
+
   return (
     <div className="max-w-[96%] mx-auto p-4 sm:p-6 space-y-6 animate-in fade-in duration-300">
       {/* Enterprise Inventory Hub Navigation Bar */}
@@ -118,6 +170,12 @@ export default function InventoryHub() {
             </h1>
           </div>
           <div className="flex flex-wrap gap-2 shrink-0">
+            <button
+              onClick={handleExportLiveInventory}
+              className="px-4 py-2.5 text-xs font-extrabold uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md flex items-center gap-1.5 transition-all"
+            >
+              <Download className="w-4 h-4" /> Export Live Inventory
+            </button>
             <button
               onClick={() => setShowAddProductModal(true)}
               className="lss-btn-gold px-4 py-2.5 text-xs font-extrabold uppercase tracking-wider shadow-md flex items-center gap-1.5"

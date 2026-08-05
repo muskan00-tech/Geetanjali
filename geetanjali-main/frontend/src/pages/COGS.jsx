@@ -2,8 +2,7 @@ import { useState, useEffect } from "react";
 import { DollarSign, Plus, Trash2, Edit, Layers } from "lucide-react";
 import { toast } from "sonner";
 import SearchableSelect from "@/components/ui/SearchableSelect";
-
-const BACKEND = process.env.REACT_APP_BACKEND_URL || "http://localhost:8000";
+import api, { errMsg } from "../lib/api";
 
 export default function COGSPage() {
   const [recipes, setRecipes] = useState([]);
@@ -21,8 +20,8 @@ export default function COGSPage() {
 
   const fetchRecipes = async () => {
     try {
-      const res = await fetch(`${BACKEND}/api/cogs/recipes`, { credentials: "include" });
-      if (res.ok) setRecipes(await res.json());
+      const res = await api.get("/cogs/recipes");
+      setRecipes(res.data || []);
     } catch (e) {
       console.error(e);
     }
@@ -30,8 +29,8 @@ export default function COGSPage() {
 
   const fetchAnalysis = async () => {
     try {
-      const res = await fetch(`${BACKEND}/api/cogs/analysis`, { credentials: "include" });
-      if (res.ok) setAnalysis((await res.json()).analysis || []);
+      const res = await api.get("/cogs/analysis");
+      setAnalysis(res.data?.analysis || []);
     } catch (e) {
       console.error(e);
     }
@@ -39,8 +38,8 @@ export default function COGSPage() {
 
   const fetchSkus = async () => {
     try {
-      const res = await fetch(`${BACKEND}/api/inventory/skus`, { credentials: "include" });
-      if (res.ok) setSkus(await res.json());
+      const res = await api.get("/inventory/skus");
+      setSkus(res.data || []);
     } catch (e) {
       console.error(e);
     }

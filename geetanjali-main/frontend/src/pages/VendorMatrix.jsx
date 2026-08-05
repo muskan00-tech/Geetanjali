@@ -2,8 +2,7 @@ import { useState, useEffect } from "react";
 import { Building2, Plus, FileText, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import DatePicker from "@/components/ui/DatePicker";
-
-const BACKEND = process.env.REACT_APP_BACKEND_URL || "http://localhost:8000";
+import api, { errMsg } from "../lib/api";
 
 export default function VendorMatrixPage() {
   const [matrix, setMatrix] = useState([]);
@@ -34,8 +33,8 @@ export default function VendorMatrixPage() {
 
   const fetchMatrix = async () => {
     try {
-      const res = await fetch(`${BACKEND}/api/vendors/matrix`, { credentials: "include" });
-      if (res.ok) setMatrix(await res.json());
+      const res = await api.get("/vendors/matrix");
+      setMatrix(res.data || []);
     } catch (e) {
       console.error(e);
     } finally {

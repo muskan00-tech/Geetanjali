@@ -205,17 +205,6 @@ export default function OwnerDashboard() {
                 isGold={false}
               />
             </motion.div>
-
-            <motion.div variants={itemVariants}>
-              <MetricCard
-                testid="pending-payouts"
-                label="Payouts Awaiting Release"
-                value={data.pending_payouts}
-                sub={`${data.staff_count} active staff`}
-                icon={BadgeCheck}
-                isGold={true}
-              />
-            </motion.div>
           </motion.div>
 
           {/* Executive Capital & Revenue Allocation Chart */}
@@ -354,25 +343,6 @@ export default function OwnerDashboard() {
               <h3 className="font-serif-lux text-3xl text-slate-950 font-bold mt-2">Actionable Operations</h3>
               <div className="mt-6 space-y-3">
                 <Link
-                  to="/payouts"
-                  data-testid="quick-review-payouts"
-                  className="flex items-center justify-between p-4 bg-white border border-slate-200 hover:border-amber-400 rounded-xl transition-all group shadow-xs hover:shadow-md"
-                >
-                  <div className="flex items-center gap-3.5">
-                    <div className="p-2.5 bg-slate-950 text-amber-300 rounded-xl shadow-xs group-hover:scale-105 transition-transform">
-                      <BadgeCheck className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="text-slate-950 font-extrabold text-sm">Review daily payouts</div>
-                      <div className="text-xs text-slate-600 font-semibold mt-0.5">
-                        Confirm calculated staff earnings and approve releases
-                      </div>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-slate-700 group-hover:text-amber-600 group-hover:translate-x-1.5 transition-all" />
-                </Link>
-
-                <Link
                   to="/inventory"
                   data-testid="quick-review-inventory"
                   className="flex items-center justify-between p-4 bg-white border border-slate-200 hover:border-amber-400 rounded-xl transition-all group shadow-xs hover:shadow-md"
@@ -429,13 +399,6 @@ export default function OwnerDashboard() {
             <Leaf className="w-3.5 h-3.5" />
           </div>
           <span className="whitespace-nowrap">Import POS</span>
-        </Link>
-
-        <Link to="/payouts" className="neu-pill flex items-center gap-2.5 px-5 py-2.5 text-xs font-extrabold text-slate-800">
-          <div className="w-7 h-7 rounded-full neu-inset text-rose-700 flex items-center justify-center">
-            <Layers className="w-3.5 h-3.5" />
-          </div>
-          <span className="whitespace-nowrap">Release Payout</span>
         </Link>
 
         <Link to="/procurement" className="neu-pill flex items-center gap-2.5 px-5 py-2.5 text-xs font-extrabold text-slate-800">

@@ -44,7 +44,6 @@ const navCategories = [
     items: [
       { to: "/pos", label: "POS Import", icon: Upload, roles: ["owner", "manager", "admin"] },
       { to: "/incentives", label: "Incentives Engine", icon: Coins, roles: ["owner", "manager", "admin"] },
-      { to: "/payouts", label: "Payout Release", icon: BadgeCheck, roles: ["owner", "admin"] },
       { to: "/attendance", label: "Staff & Attendance", icon: UserCheck, roles: ["owner", "manager", "admin"] },
     ],
   },

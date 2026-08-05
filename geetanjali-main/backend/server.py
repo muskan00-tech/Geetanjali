@@ -2187,6 +2187,14 @@ async def monthly_payouts(month: str):
 
 
 # ------------------ Inventory ------------------
+@api.post("/inventory/reset-stock-zero")
+async def reset_stock_zero():
+    async with async_session() as session:
+        await session.execute(text("UPDATE skus SET store_qty = 0, floor_qty = 0, retail_qty = 0;"))
+        await session.execute(text("UPDATE sku_batches SET qty = 0;"))
+        await session.commit()
+    return {"ok": True, "message": "All inventory stock reset to 0"}
+
 @api.get("/inventory/skus")
 async def list_skus(ledger: Optional[str] = None):
     async with async_session() as session:

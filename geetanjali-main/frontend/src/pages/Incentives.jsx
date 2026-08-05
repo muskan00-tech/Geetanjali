@@ -392,22 +392,13 @@ export default function Incentives() {
                 posDates={dates}
                 onChange={(e) => setMonth(e.target.value)}
               />
-              <div className="ml-auto flex items-center gap-2 self-end">
-                <button
-                  onClick={handleOpenSalaryManager}
-                  className="flex items-center gap-2 px-4 py-2 text-xs font-extrabold uppercase tracking-wider rounded-xl bg-slate-900 text-white hover:bg-slate-700 transition-colors"
-                >
-                  <Users className="w-3.5 h-3.5" />
-                  Manage Salary Structure
-                </button>
-                <a
-                  href={`${API}/reports/monthly-incentives.xlsx?month=${month}`}
-                  data-testid="monthly-export"
-                  className="lss-btn-gold px-4 py-2 text-xs uppercase tracking-wider font-bold"
-                >
-                  Export Excel
-                </a>
-              </div>
+              <a
+                href={`${API}/reports/monthly-incentives.xlsx?month=${month}`}
+                data-testid="monthly-export"
+                className="lss-btn-gold px-4 py-2 text-xs uppercase tracking-wider font-bold ml-auto self-end"
+              >
+                Export Excel
+              </a>
             </div>
             {loading ? (
               <div className="p-4 space-y-4 animate-pulse">

@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
-import { Clock, UserCheck, DollarSign, Plus, Edit2, Trash2, X, Settings } from "lucide-react";
+import { Clock, UserCheck, DollarSign, Plus, Edit2, Trash2, X, Settings, Users, Save } from "lucide-react";
 import { toast } from "sonner";
 import DatePicker from "@/components/ui/DatePicker";
-
-const BACKEND = process.env.REACT_APP_BACKEND_URL || "http://localhost:8000";
+import api, { errMsg } from "../lib/api";
 
 export default function AttendancePage() {
   const [staffList, setStaffList] = useState([]);
@@ -13,11 +12,74 @@ export default function AttendancePage() {
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
 
-  // Staff management modal states
-  const [showStaffModal, setShowStaffModal] = useState(false);
-  const [editingStaff, setEditingStaff] = useState(null);
-  const [isAddingNew, setIsAddingNew] = useState(false);
-  const [staffForm, setStaffForm] = useState({ name: "", role: "STYLIST", base_salary: 25000 });
+  // Bulk Salary Manager Modal States
+  const [showSalaryModal, setShowSalaryModal] = useState(false);
+  const [salaryRows, setSalaryRows] = useState([]);
+  const [salaryLoading, setSalaryLoading] = useState(false);
+  const [salarySaving, setSalarySaving] = useState(false);
+
+  const handleOpenSalaryManager = async () => {
+    setShowSalaryModal(true);
+    setSalaryLoading(true);
+    try {
+      const res = await api.get("/staff");
+      const staff = (res.data || []).map((s) => ({
+        id: s.id,
+        name: s.name || "",
+        department: s.department || s.role || "STYLIST",
+        base_salary: s.base_salary || 0,
+        _new: false,
+        _delete: false,
+      }));
+      setSalaryRows(staff);
+    } catch (err) {
+      toast.error(errMsg(err));
+    } finally {
+      setSalaryLoading(false);
+    }
+  };
+
+  const handleSalaryRowChange = (idx, field, val) => {
+    setSalaryRows((prev) => prev.map((r, i) => i === idx ? { ...r, [field]: val } : r));
+  };
+
+  const handleAddSalaryRow = () => {
+    setSalaryRows((prev) => [...prev, { id: `new_${Date.now()}`, name: "", department: "STYLIST", base_salary: 25000, _new: true, _delete: false }]);
+  };
+
+  const handleDeleteSalaryRow = (idx) => {
+    setSalaryRows((prev) => prev.map((r, i) => i === idx ? { ...r, _delete: true } : r));
+  };
+
+  const handleSaveAllSalaries = async () => {
+    setSalarySaving(true);
+    let saved = 0, deleted = 0, errors = 0;
+    try {
+      for (const row of salaryRows) {
+        if (!row.name.trim()) continue;
+        try {
+          if (row._delete && !row._new) {
+            await api.delete(`/staff/${row.id}`);
+            deleted++;
+          } else if (!row._delete) {
+            if (row._new) {
+              await api.post("/staff", { name: row.name, base_salary: Number(row.base_salary), department: row.department, role: row.department === "MANAGER" ? "manager" : "staff" });
+            } else {
+              await api.put(`/staff/${row.id}`, { name: row.name, base_salary: Number(row.base_salary), department: row.department });
+            }
+            saved++;
+          }
+        } catch { errors++; }
+      }
+      toast.success(`Saved ${saved} staff profiles${deleted > 0 ? `, removed ${deleted}` : ""}`);
+      setShowSalaryModal(false);
+      fetchStaff();
+      fetchAttendance();
+      fetchSummary();
+    } finally {
+      setSalarySaving(false);
+    }
+  };
 
   useEffect(() => {
     setPageLoading(true);
@@ -26,8 +88,8 @@ export default function AttendancePage() {
 
   const fetchStaff = async () => {
     try {
-      const res = await fetch(`${BACKEND}/api/staff`, { credentials: "include" });
-      if (res.ok) setStaffList(await res.json());
+      const res = await api.get("/staff");
+      setStaffList(res.data || []);
     } catch (e) {
       console.error(e);
     }
@@ -35,8 +97,8 @@ export default function AttendancePage() {
 
   const fetchAttendance = async () => {
     try {
-      const res = await fetch(`${BACKEND}/api/attendance?month=${month}`, { credentials: "include" });
-      if (res.ok) setAttendance(await res.json());
+      const res = await api.get(`/attendance?month=${month}`);
+      setAttendance(res.data || []);
     } catch (e) {
       console.error(e);
     }
@@ -44,11 +106,8 @@ export default function AttendancePage() {
 
   const fetchSummary = async () => {
     try {
-      const res = await fetch(`${BACKEND}/api/attendance/summary?month=${month}`, { credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
-        setSummary(data.summaries || []);
-      }
+      const res = await api.get(`/attendance/summary?month=${month}`);
+      setSummary(res.data?.summaries || []);
     } catch (e) {
       console.error(e);
     }
@@ -58,33 +117,24 @@ export default function AttendancePage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const url = editingStaff ? `${BACKEND}/api/staff/${editingStaff.id}` : `${BACKEND}/api/staff`;
-      const method = editingStaff ? "PUT" : "POST";
       const payload = {
         name: staffForm.name,
         role: staffForm.role,
         base_salary: Number(staffForm.base_salary) || 0,
       };
-      
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (res.ok) {
-        toast.success(editingStaff ? "Staff updated successfully" : "Staff member added successfully");
-        setEditingStaff(null);
-        setIsAddingNew(false);
-        setStaffForm({ name: "", role: "STYLIST", base_salary: 25000 });
-        fetchStaff();
-        fetchSummary();
+      if (editingStaff) {
+        await api.put(`/staff/${editingStaff.id}`, payload);
       } else {
-        toast.error(data.detail || "Failed to save staff");
+        await api.post("/staff", payload);
       }
+      toast.success(editingStaff ? "Staff updated successfully" : "Staff member added successfully");
+      setEditingStaff(null);
+      setIsAddingNew(false);
+      setStaffForm({ name: "", role: "STYLIST", base_salary: 25000 });
+      fetchStaff();
+      fetchSummary();
     } catch (e) {
-      toast.error("Network error");
+      toast.error(errMsg(e));
     } finally {
       setLoading(false);
     }
@@ -94,19 +144,12 @@ export default function AttendancePage() {
     if (!window.confirm(`Are you sure you want to delete ${name}?`)) return;
     setLoading(true);
     try {
-      const res = await fetch(`${BACKEND}/api/staff/${staffId}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (res.ok) {
-        toast.success(`Deleted ${name}`);
-        fetchStaff();
-        fetchSummary();
-      } else {
-        toast.error("Failed to delete staff member");
-      }
+      await api.delete(`/staff/${staffId}`);
+      toast.success(`Deleted ${name}`);
+      fetchStaff();
+      fetchSummary();
     } catch (e) {
-      toast.error("Network error");
+      toast.error(errMsg(e));
     } finally {
       setLoading(false);
     }
@@ -115,20 +158,11 @@ export default function AttendancePage() {
   const handleClockIn = async (staffId) => {
     setLoading(true);
     try {
-      const res = await fetch(`${BACKEND}/api/attendance/clock-in?staff_id=${staffId}`, {
-        method: "POST",
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (res.ok) {
-        toast.success(`Clocked in ${data.staff_name}`);
-        fetchAttendance();
-        fetchSummary();
-      } else {
-        toast.error(data.detail || "Clock-in failed");
-      }
+      await api.post(`/attendance/clock-in?staff_id=${staffId}`);
+      toast.success("Clocked in successfully");
+      fetchAttendance();
     } catch (e) {
-      toast.error("Network error");
+      toast.error(errMsg(e));
     } finally {
       setLoading(false);
     }
@@ -137,20 +171,12 @@ export default function AttendancePage() {
   const handleClockOut = async (staffId) => {
     setLoading(true);
     try {
-      const res = await fetch(`${BACKEND}/api/attendance/clock-out?staff_id=${staffId}`, {
-        method: "POST",
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (res.ok) {
-        toast.success(`Clocked out ${data.staff_name} (${data.hours_worked} hrs)`);
-        fetchAttendance();
-        fetchSummary();
-      } else {
-        toast.error(data.detail || "Clock-out failed");
-      }
+      await api.post(`/attendance/clock-out?staff_id=${staffId}`);
+      toast.success("Clocked out successfully");
+      fetchAttendance();
+      fetchSummary();
     } catch (e) {
-      toast.error("Network error");
+      toast.error(errMsg(e));
     } finally {
       setLoading(false);
     }
@@ -178,11 +204,11 @@ export default function AttendancePage() {
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setShowStaffModal(true)}
-            className="lss-btn bg-slate-950 text-white font-extrabold py-2.5 px-4 rounded-lg flex items-center gap-2 hover:bg-slate-800 transition text-sm shadow-sm"
+            onClick={handleOpenSalaryManager}
+            className="flex items-center gap-2 px-4 py-2.5 text-xs font-extrabold uppercase tracking-wider rounded-xl bg-slate-900 text-white hover:bg-slate-700 transition-colors shadow-xs"
           >
-            <Settings className="w-4 h-4 text-amber-500 animate-spin-slow" />
-            Manage Salaries
+            <Users className="w-4 h-4 text-amber-400" />
+            Manage Salary Structure
           </button>
           <DatePicker
             type="month"
@@ -259,26 +285,7 @@ export default function AttendancePage() {
                 <tr key={row.staff_id}>
                   <td className="font-bold text-slate-900">{row.staff_name}</td>
                   <td className="text-slate-700 font-medium">
-                    <div className="flex items-center gap-1.5">
-                      <span>₹{row.base_salary?.toLocaleString()}</span>
-                      <button
-                        onClick={() => {
-                          const matched = staffList.find((st) => st.id === row.staff_id || st.name.toLowerCase() === row.staff_name.toLowerCase());
-                          if (matched) {
-                            setEditingStaff(matched);
-                            setStaffForm({ name: matched.name, role: matched.role || matched.department || "STYLIST", base_salary: matched.base_salary });
-                          } else {
-                            setEditingStaff({ id: row.staff_id, name: row.staff_name });
-                            setStaffForm({ name: row.staff_name, role: "STYLIST", base_salary: row.base_salary });
-                          }
-                          setShowStaffModal(true);
-                        }}
-                        className="text-slate-400 hover:text-amber-600 transition-colors p-1"
-                        title="Edit Salary & Role"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                    ₹{row.base_salary?.toLocaleString()}
                   </td>
                   <td className="text-emerald-700 font-bold">{row.days_present}</td>
                   <td className="text-amber-700 font-bold">{row.days_half_day}</td>
@@ -295,179 +302,119 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      {/* Staff Management Modal */}
-      {showStaffModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-3xl w-full max-h-[85vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
-            {/* Modal Header */}
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+      {/* Salary Structure Manager Modal */}
+      {showSalaryModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl border border-slate-200 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-100">
               <div>
-                <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-                  <UserCheck className="w-5 h-5 text-amber-600" />
-                  Staff Directory & Salaries
-                </h2>
-                <p className="text-xs text-slate-500 font-medium mt-0.5">Manage employees, designations, and their monthly base pay</p>
+                <h3 className="font-extrabold text-xl text-slate-900 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-amber-700" /> Salary Structure — Geetanjali Salon
+                </h3>
+                <p className="text-xs font-medium text-slate-500 mt-0.5">Edit, add or remove staff. Changes save permanently to the database.</p>
               </div>
-              <button
-                onClick={() => {
-                  setShowStaffModal(false);
-                  setIsAddingNew(false);
-                  setEditingStaff(null);
-                }}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
-              >
+              <button onClick={() => setShowSalaryModal(false)} className="text-slate-400 hover:text-slate-700 p-1.5 rounded-xl hover:bg-slate-100">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Modal Body */}
-            <div className="p-6 overflow-y-auto flex-1 space-y-4">
-              {isAddingNew || editingStaff ? (
-                /* Add / Edit Form */
-                <form onSubmit={handleSaveStaff} className="space-y-4 max-w-md mx-auto">
-                  <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider">
-                    {editingStaff ? `Edit Profile: ${editingStaff.name}` : "Add New Employee"}
-                  </h3>
-                  
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wide block mb-1">
-                      Employee Name <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. SIRAJ"
-                      value={staffForm.name}
-                      onChange={(e) => setStaffForm({ ...staffForm, name: e.target.value })}
-                      disabled={!!editingStaff}
-                      className="lss-input w-full text-xs font-bold text-slate-900 bg-slate-50 disabled:opacity-60"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wide block mb-1">
-                      Designation / Role <span className="text-rose-500">*</span>
-                    </label>
-                    <select
-                      value={staffForm.role}
-                      onChange={(e) => setStaffForm({ ...staffForm, role: e.target.value })}
-                      className="lss-input w-full text-xs font-bold text-slate-950"
-                      required
-                    >
-                      <option value="STYLIST">STYLIST</option>
-                      <option value="ASIST">ASIST</option>
-                      <option value="BARBER">BARBER</option>
-                      <option value="BEAUTI">BEAUTI</option>
-                      <option value="HOUSEKEPNG">HOUSEKEPNG</option>
-                      <option value="PEDICURIST">PEDICURIST</option>
-                      <option value="MANAGER">MANAGER</option>
-                      <option value="staff">Staff (Other)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wide block mb-1">
-                      Base Salary (₹) <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      required
-                      placeholder="e.g. 43000"
-                      value={staffForm.base_salary}
-                      onChange={(e) => setStaffForm({ ...staffForm, base_salary: e.target.value })}
-                      className="lss-input w-full text-xs font-bold text-slate-900"
-                    />
-                  </div>
-
-                  <div className="flex gap-2 pt-2 justify-end">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsAddingNew(false);
-                        setEditingStaff(null);
-                        setStaffForm({ name: "", role: "STYLIST", base_salary: 25000 });
-                      }}
-                      className="px-4 py-2 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="px-4 py-2 text-xs font-bold bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white rounded-lg transition shadow-xs"
-                    >
-                      {loading ? "Saving..." : "Save Profile"}
-                    </button>
-                  </div>
-                </form>
+            {/* Table */}
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {salaryLoading ? (
+                <div className="space-y-3 animate-pulse">
+                  {[...Array(8)].map((_, i) => <div key={i} className="h-10 bg-slate-100 rounded-xl" />)}
+                </div>
               ) : (
-                /* Directory List Table */
-                <>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Active Staff Profiles ({staffList.length})</span>
-                    <button
-                      onClick={() => {
-                        setStaffForm({ name: "", role: "STYLIST", base_salary: 25000 });
-                        setIsAddingNew(true);
-                      }}
-                      className="lss-btn bg-slate-900 hover:bg-slate-800 text-white py-1.5 px-3 rounded-lg text-xs font-extrabold flex items-center gap-1.5 transition shadow-xs"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      Add New Staff
-                    </button>
-                  </div>
-
-                  <div className="overflow-x-auto border border-slate-200 rounded-xl bg-slate-50 max-h-96 overflow-y-auto">
-                    <table className="lss-table text-xs">
-                      <thead className="sticky top-0 bg-white z-10 shadow-xs">
-                        <tr className="bg-slate-50 text-slate-700">
-                          <th className="py-2.5 px-4 text-left">Employee Name</th>
-                          <th className="py-2.5 px-4 text-left">Designation</th>
-                          <th className="py-2.5 px-4 text-right">Base Salary</th>
-                          <th className="py-2.5 px-4 text-right">Actions</th>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200">
+                      <th className="text-left text-xs font-extrabold uppercase tracking-wider text-slate-500 py-2 pr-3 w-8">#</th>
+                      <th className="text-left text-xs font-extrabold uppercase tracking-wider text-slate-500 py-2 pr-3">Employee Name</th>
+                      <th className="text-left text-xs font-extrabold uppercase tracking-wider text-slate-500 py-2 pr-3">Designation</th>
+                      <th className="text-right text-xs font-extrabold uppercase tracking-wider text-slate-500 py-2 pr-3">Base Salary (₹)</th>
+                      <th className="w-8"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {salaryRows.filter(r => !r._delete).map((row, idx) => {
+                      const realIdx = salaryRows.indexOf(row);
+                      return (
+                        <tr key={row.id} className="border-b border-slate-100 hover:bg-slate-50/60">
+                          <td className="py-2 pr-3 text-xs text-slate-400 font-bold">{idx + 1}</td>
+                          <td className="py-1.5 pr-3">
+                            <input
+                              type="text"
+                              value={row.name}
+                              onChange={(e) => handleSalaryRowChange(realIdx, "name", e.target.value)}
+                              className="w-full px-3 py-1.5 text-sm font-bold text-slate-900 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+                              placeholder="Staff name"
+                            />
+                          </td>
+                          <td className="py-1.5 pr-3">
+                            <input
+                              type="text"
+                              value={row.department}
+                              onChange={(e) => handleSalaryRowChange(realIdx, "department", e.target.value)}
+                              className="w-full px-3 py-1.5 text-sm font-semibold text-slate-700 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+                              placeholder="e.g. STYLIST, MANAGER"
+                            />
+                          </td>
+                          <td className="py-1.5 pr-3">
+                            <input
+                              type="number"
+                              step="500"
+                              value={row.base_salary}
+                              onChange={(e) => handleSalaryRowChange(realIdx, "base_salary", e.target.value)}
+                              className="w-full px-3 py-1.5 text-sm font-mono font-extrabold text-amber-900 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white text-right"
+                            />
+                          </td>
+                          <td className="py-1.5 pl-1">
+                            <button
+                              onClick={() => handleDeleteSalaryRow(realIdx)}
+                              className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                              title="Remove this staff"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {staffList.map((s) => (
-                          <tr key={s.id} className="hover:bg-amber-50/20 transition">
-                            <td className="py-2.5 px-4 font-bold text-slate-900">{s.name}</td>
-                            <td className="py-2.5 px-4 text-slate-600 font-semibold">{s.role}</td>
-                            <td className="py-2.5 px-4 text-right text-slate-900 font-bold tabular">
-                              ₹{s.base_salary?.toLocaleString()}
-                            </td>
-                            <td className="py-2.5 px-4 text-right flex justify-end gap-1.5">
-                              <button
-                                onClick={() => {
-                                  setEditingStaff(s);
-                                  setStaffForm({ name: s.name, role: s.role || "STYLIST", base_salary: s.base_salary || 25000 });
-                                }}
-                                className="p-1 text-slate-400 hover:text-indigo-600 transition"
-                                title="Edit Staff"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteStaff(s.id, s.name)}
-                                className="p-1 text-slate-400 hover:text-rose-600 transition"
-                                title="Delete Staff"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                        {staffList.length === 0 && (
-                          <tr>
-                            <td colSpan={4} className="text-center py-8 text-slate-500 font-medium">
-                              No staff members in directory. Click "Add New Staff" to create one.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-slate-200 bg-slate-50/80">
+                      <td colSpan={3} className="py-3 px-2 text-xs font-extrabold text-slate-600 uppercase tracking-wider">Total Monthly Salary</td>
+                      <td className="py-3 pr-3 text-right font-mono font-extrabold text-slate-900 text-sm">
+                        ₹{salaryRows.filter(r => !r._delete).reduce((s, r) => s + Number(r.base_salary || 0), 0).toLocaleString("en-IN")}
+                      </td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                </table>
               )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/60 rounded-b-2xl">
+              <button
+                onClick={handleAddSalaryRow}
+                className="flex items-center gap-1.5 px-4 py-2 text-xs font-extrabold uppercase tracking-wider text-amber-800 hover:text-amber-950 hover:bg-amber-50 rounded-xl transition-colors border border-amber-200"
+              >
+                <Plus className="w-3.5 h-3.5" /> Add Staff
+              </button>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-slate-400 font-medium">{salaryRows.filter(r => !r._delete).length} staff · {salaryRows.filter(r => r._delete && !r._new).length > 0 ? `${salaryRows.filter(r => r._delete && !r._new).length} to remove` : ""}</span>
+                <button onClick={() => setShowSalaryModal(false)} className="px-4 py-2 text-xs font-extrabold uppercase tracking-wider text-slate-600 hover:bg-slate-200 rounded-xl">Cancel</button>
+                <button
+                  onClick={handleSaveAllSalaries}
+                  disabled={salarySaving}
+                  className="flex items-center gap-2 lss-btn-gold px-5 py-2 text-xs font-extrabold uppercase tracking-wider rounded-xl"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {salarySaving ? "Saving..." : "Save All Changes"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

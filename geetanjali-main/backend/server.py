@@ -996,10 +996,68 @@ class StaffUpdateIn(BaseModel):
 
 @api.get("/staff")
 async def list_staff():
-    await _auto_sync_staff_from_pos()
     async with async_session() as session:
         result = await session.execute(select(Staff).order_by(Staff.name))
-        return [s.to_dict() for s in result.scalars().all()]
+        staff_list = result.scalars().all()
+        if not staff_list:
+            await _auto_sync_staff_from_pos()
+            result = await session.execute(select(Staff).order_by(Staff.name))
+            staff_list = result.scalars().all()
+        return [s.to_dict() for s in staff_list]
+
+class StaffBulkRow(BaseModel):
+    id: Optional[str] = None
+    name: str
+    department: Optional[str] = "STYLIST"
+    base_salary: float = 25000.0
+    _new: Optional[bool] = False
+    _delete: Optional[bool] = False
+
+@api.post("/staff/bulk-update")
+async def bulk_update_staff(rows: List[StaffBulkRow], user: dict = Depends(require_role("owner", "manager", "admin"))):
+    async with async_session() as session:
+        saved_count = 0
+        deleted_count = 0
+        for r in rows:
+            if not r.name.strip():
+                continue
+            if r._delete and r.id and not r._new:
+                existing = (await session.execute(select(Staff).where(Staff.id == r.id))).scalar_one_or_none()
+                if existing:
+                    await session.delete(existing)
+                    deleted_count += 1
+            elif not r._delete:
+                if r.id and not r._new:
+                    existing = (await session.execute(select(Staff).where(Staff.id == r.id))).scalar_one_or_none()
+                    if existing:
+                        existing.name = r.name.strip()
+                        existing.department = (r.department or "").strip()
+                        existing.base_salary = float(r.base_salary)
+                        saved_count += 1
+                    else:
+                        new_s = Staff(
+                            id=new_id(),
+                            name=r.name.strip(),
+                            department=(r.department or "").strip(),
+                            role="manager" if (r.department or "").upper() == "MANAGER" else "staff",
+                            base_salary=float(r.base_salary),
+                            created_at=now_utc()
+                        )
+                        session.add(new_s)
+                        saved_count += 1
+                else:
+                    new_s = Staff(
+                        id=new_id(),
+                        name=r.name.strip(),
+                        department=(r.department or "").strip(),
+                        role="manager" if (r.department or "").upper() == "MANAGER" else "staff",
+                        base_salary=float(r.base_salary),
+                        created_at=now_utc()
+                    )
+                    session.add(new_s)
+                    saved_count += 1
+        await session.commit()
+        return {"ok": True, "saved": saved_count, "deleted": deleted_count}
 
 @api.post("/staff")
 async def create_staff(payload: StaffCreateIn, user: dict = Depends(require_role("owner", "manager", "admin"))):

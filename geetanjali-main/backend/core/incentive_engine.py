@@ -62,7 +62,20 @@ DEFAULT_CONFIG = {
 
 
 async def get_config() -> dict:
-    """Retrieve default master config."""
+    """Retrieve master config from PostgreSQL, with fallback to DEFAULT_CONFIG."""
+    try:
+        from core.pg_database import async_session
+        from core.pg_models import AppConfig
+        from sqlalchemy import select
+        async with async_session() as session:
+            res = await session.execute(select(AppConfig).where(AppConfig.id == "master"))
+            cfg = res.scalar_one_or_none()
+            if cfg and cfg.data:
+                merged = dict(DEFAULT_CONFIG)
+                merged.update(cfg.data)
+                return merged
+    except Exception:
+        pass
     return DEFAULT_CONFIG
 
 

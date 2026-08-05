@@ -1518,6 +1518,57 @@ async def incentives_manager(month: str):
             "bonus_per_manager": bonus["bonus"], "milestones": cfg["manager_milestones"]}
 
 # ------------------ Product Incentive Custom Mappings & Flagged Products ------------------
+@api.get("/incentives/mappings")
+async def list_product_incentive_mappings():
+    async with async_session() as session:
+        result = await session.execute(select(ProductIncentiveMapping).order_by(ProductIncentiveMapping.pos_item_name))
+        return [m.to_dict() for m in result.scalars().all()]
+
+@api.post("/incentives/mappings")
+async def upsert_product_incentive_mapping(payload: ProductMappingIn, user: dict = Depends(require_role("owner", "admin", "manager"))):
+    norm_name = payload.pos_item_name.strip().lower()
+    async with async_session() as session:
+        res = await session.execute(select(ProductIncentiveMapping).where(ProductIncentiveMapping.pos_item_name == norm_name))
+        existing = res.scalar_one_or_none()
+        if existing:
+            existing.display_name = payload.pos_item_name.strip()
+            existing.brand = payload.brand or ""
+            existing.pattern = payload.pattern or ""
+            existing.sku_id = payload.sku_id
+            existing.amount = payload.amount
+            existing.min_price = payload.min_price
+            existing.max_price = payload.max_price
+            existing.updated_at = now_utc()
+            await session.commit()
+            return existing.to_dict()
+
+        doc = ProductIncentiveMapping(
+            id=new_id(),
+            pos_item_name=norm_name,
+            display_name=payload.pos_item_name.strip(),
+            brand=payload.brand or "",
+            pattern=payload.pattern or "",
+            sku_id=payload.sku_id,
+            amount=payload.amount,
+            min_price=payload.min_price,
+            max_price=payload.max_price,
+            created_at=now_utc(),
+            updated_at=now_utc(),
+        )
+        session.add(doc)
+        await session.commit()
+        return doc.to_dict()
+
+@api.delete("/incentives/mappings/{mapping_id}")
+async def delete_product_incentive_mapping(mapping_id: str, user: dict = Depends(require_role("owner", "admin", "manager"))):
+    async with async_session() as session:
+        res = await session.execute(select(ProductIncentiveMapping).where(ProductIncentiveMapping.id == mapping_id))
+        doc = res.scalar_one_or_none()
+        if not doc:
+            raise HTTPException(404, "Mapping not found")
+        await session.delete(doc)
+        await session.commit()
+        return {"ok": True}
 
 # ------------------ Vendors ------------------
 @api.get("/vendors")

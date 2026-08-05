@@ -668,26 +668,30 @@ async def import_csv_bytes(csv_bytes: bytes) -> Dict[str, Any]:
             except Exception as ex:
                 log.error(f"Failed to insert row {rec.get('invoice_number')}: {ex}")
 
-        # Seed staff from POS
+        # Seed staff from POS (batch lookup)
+        existing_staff_res = await session.execute(select(func.lower(func.trim(Staff.name))))
+        existing_staff_set = {r[0] for r in existing_staff_res.all() if r[0]}
+
         for name in staff_names:
-            existing = await session.execute(
-                select(Staff).where(func.lower(func.trim(Staff.name)) == name.lower())
-            )
-            if not existing.scalar_one_or_none():
+            if name.lower() not in existing_staff_set:
                 session.add(Staff(id=new_id(), name=name, base_salary=25000, role="staff", created_at=now_utc()))
+                existing_staff_set.add(name.lower())
 
         await session.commit()
         log.info(f"import_csv_bytes committed: {len(new_records)} rows inserted fresh")
 
-
-        # Seed SKUs from products and auto-checkout
+        # Seed SKUs from products and auto-checkout (batch lookup)
         auto_co = 0
         async with async_session() as session2:
+            sku_res = await session2.execute(select(SKU))
+            sku_map = {s.name.strip().lower(): s for s in sku_res.scalars().all()}
+
             for rec in new_records:
                 if rec["type"].lower() == "product" and rec["item_name"]:
                     sku_name = rec["item_name"].strip()
-                    existing = await session2.execute(select(SKU).where(SKU.name == sku_name))
-                    sku = existing.scalar_one_or_none()
+                    norm_sku = sku_name.lower()
+                    sku = sku_map.get(norm_sku)
+
                     if not sku:
                         sku = SKU(
                             id=new_id(), name=sku_name,
@@ -698,14 +702,12 @@ async def import_csv_bytes(csv_bytes: bytes) -> Dict[str, Any]:
                             created_at=now_utc(),
                         )
                         session2.add(sku)
-                        # Add default batches
                         session2.add(SKUBatch(id=new_id(), sku_id=sku.id, qty=3, location="floor",
                                              unit_cost=round(rec["rate"] * 0.55, 2), received_at=now_utc()))
                         session2.add(SKUBatch(id=new_id(), sku_id=sku.id, qty=12, location="store",
                                              unit_cost=round(rec["rate"] * 0.55, 2), received_at=now_utc()))
-                        await session2.flush()
+                        sku_map[norm_sku] = sku
 
-                    # Auto-checkout from retail/floor for POS product sale
                     consumed = await _consume_batches_session(session2, sku.id, "retail", rec["quantity"])
                     if consumed > 0:
                         session2.add(Checkout(

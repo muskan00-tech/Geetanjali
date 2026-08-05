@@ -2166,6 +2166,67 @@ async def create_sku(payload: SKUCreateIn, user: dict = Depends(require_role("ow
         await session.commit()
     return {"ok": True, "id": sku_id}
 
+class SKUBulkItem(BaseModel):
+    name: str
+    vendor_name: str = ""
+    brand: str = ""
+    category: str = "Retail"
+    unit: str = "Pcs"
+    store_qty: float = 0
+    min_stock: float = 5
+    unit_cost: float = 0
+    mrp: float = 0
+    status: str = "Active"
+
+@api.post("/inventory/bulk-import")
+async def bulk_import_skus(items: List[SKUBulkItem]):
+    """Bulk import SKUs — skips duplicates by name, returns counts."""
+    added = 0
+    skipped = 0
+    async with async_session() as session:
+        # Fetch existing names to de-duplicate
+        existing_result = await session.execute(select(SKU.name))
+        existing_names = {r[0].strip().lower() for r in existing_result.all()}
+
+        for item in items:
+            norm = item.name.strip()
+            if not norm or norm.lower() in existing_names:
+                skipped += 1
+                continue
+            sku_id = new_id()
+            selling = item.mrp or (item.unit_cost * 1.5)
+            sku = SKU(
+                id=sku_id,
+                name=norm,
+                brand=item.brand or "",
+                category=item.category or "Retail",
+                unit=item.unit or "Pcs",
+                vendor_name=item.vendor_name or "",
+                unit_cost=item.unit_cost,
+                mrp=item.mrp or selling,
+                selling_price=selling,
+                unit_price=selling,
+                store_qty=item.store_qty,
+                floor_qty=0,
+                retail_qty=0,
+                min_stock=item.min_stock,
+                reorder_level=item.min_stock * 2,
+                status=item.status or "Active",
+                created_at=now_utc(),
+            )
+            session.add(sku)
+            if item.store_qty > 0:
+                session.add(SKUBatch(
+                    id=new_id(), sku_id=sku_id,
+                    qty=item.store_qty, location="store",
+                    unit_cost=item.unit_cost, received_at=now_utc(),
+                ))
+            existing_names.add(norm.lower())
+            added += 1
+
+        await session.commit()
+    return {"added": added, "skipped": skipped, "total": len(items)}
+
 @api.post("/inventory/purchase-invoice")
 async def create_purchase_invoice(payload: PurchaseInvoiceIn, user: dict = Depends(require_role("owner", "admin", "manager"))):
     pi_id = new_id()

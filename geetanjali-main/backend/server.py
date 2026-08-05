@@ -1926,7 +1926,7 @@ async def _cumulative_data(date_from: str, date_to: str, only_unpaid: bool):
         mappings = {m.pos_item_name: m.to_dict() for m in map_rows}
         
         sku_rows = (await session.execute(select(SKU.name, SKU.brand))).all()
-        sku_brand_map = {name.strip(): (brand or "").strip() for name, brand in sku_rows if name}
+        sku_brand_map = {str(name).strip(): str(brand or "").strip() for name, brand in sku_rows if name}
 
         q = (
             select(

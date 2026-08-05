@@ -29,12 +29,23 @@ if not raw_url:
     log.critical("FATAL: PG_DATABASE_URL environment variable is missing. PostgreSQL connection required.")
     raise RuntimeError("FATAL: PG_DATABASE_URL is not set. The application requires a valid PostgreSQL connection string.")
 
+import re
+
 # Standardize URL driver to postgresql+asyncpg://
 DATABASE_URL = raw_url
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
 elif DATABASE_URL.startswith("postgresql://") and "+asyncpg" not in DATABASE_URL:
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+# Check if SSL is requested / needed for Supabase
+USE_SSL = "supabase" in DATABASE_URL.lower() or "sslmode=" in DATABASE_URL.lower() or "ssl=" in DATABASE_URL.lower()
+
+# Strip sslmode and ssl query parameters from URL because asyncpg driver does not accept them as URL args
+DATABASE_URL = re.sub(r'[\?&]sslmode=[^&]+', '', DATABASE_URL)
+DATABASE_URL = re.sub(r'[\?&]ssl=[^&]+', '', DATABASE_URL)
+if "?" not in DATABASE_URL and "&" in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("&", "?", 1)
 
 
 class Base(DeclarativeBase):
@@ -47,7 +58,7 @@ def create_engine_and_session(url: str):
         _engine = create_async_engine(url, echo=False)
     else:
         connect_args = {}
-        if "supabase" in url.lower() or "sslmode=" in url.lower() or "ssl=" in url.lower():
+        if USE_SSL or "supabase" in url.lower():
             connect_args["ssl"] = "require"
             
         _engine = create_async_engine(

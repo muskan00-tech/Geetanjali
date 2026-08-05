@@ -16,6 +16,7 @@ export function AuthProvider({ children }) {
   const formatUser = async (fbUser) => {
     if (!fbUser) return false;
     const token = await fbUser.getIdToken();
+    localStorage.setItem("lss_token", token);
     const isOwner = fbUser.email?.toLowerCase().includes("owner");
     return {
       id: fbUser.uid,
@@ -32,6 +33,7 @@ export function AuthProvider({ children }) {
         const userData = await formatUser(fbUser);
         setUser(userData);
       } else {
+        localStorage.removeItem("lss_token");
         setUser(false);
       }
     });
@@ -53,7 +55,10 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
-    await firebaseSignOut(auth);
+    localStorage.removeItem("lss_token");
+    try {
+      await firebaseSignOut(auth);
+    } catch {}
     setUser(false);
   };
 

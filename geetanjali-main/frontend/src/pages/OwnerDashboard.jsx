@@ -238,7 +238,7 @@ export default function OwnerDashboard() {
             </div>
 
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={200}>
                 <BarChart
                   data={[
                     { name: "Working Capital", amount: data.working_capital, fill: "#0F172A" },

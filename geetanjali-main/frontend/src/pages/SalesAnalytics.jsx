@@ -204,7 +204,7 @@ export default function SalesAnalyticsPage() {
           </div>
 
           <div className="h-64 my-4 relative">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={200}>
               <PieChart>
                 <Pie
                   data={pieChartData}
@@ -261,7 +261,7 @@ export default function SalesAnalyticsPage() {
           </div>
 
           <div className="h-72 my-4">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={200}>
               <BarChart data={staffBarChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                 <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 700, fill: "#475569" }} axisLine={false} tickLine={false} />

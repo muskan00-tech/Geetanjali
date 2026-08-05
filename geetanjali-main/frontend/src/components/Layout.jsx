@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import GeetanjaliLogo from "./GeetanjaliLogo";
+import ErrorBoundary from "./ErrorBoundary";
 import {
   LayoutDashboard,
   Upload,
@@ -374,17 +375,16 @@ export default function Layout() {
 
       {/* Main Outlet with Framer Motion Page Fade & Slide Transition */}
       <main className="flex-1 min-w-0 overflow-x-hidden bg-transparent relative z-10">
-        <AnimatePresence mode="wait">
+        <ErrorBoundary key={location.pathname}>
           <motion.div
             key={location.pathname}
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.22, ease: "easeOut" }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
           >
             <Outlet />
           </motion.div>
-        </AnimatePresence>
+        </ErrorBoundary>
       </main>
     </div>
   );

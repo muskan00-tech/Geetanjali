@@ -917,11 +917,17 @@ async def quality_failures():
         result = await session.execute(q)
         return [t.to_dict() for t in result.scalars().unique().all()]
 
+_staff_seeded_flag = False
+
 async def _auto_sync_staff_from_pos():
     """Auto-seed staff only if Staff table is empty."""
+    global _staff_seeded_flag
+    if _staff_seeded_flag:
+        return
     async with async_session() as session:
         existing_count = (await session.execute(select(func.count(Staff.id)))).scalar() or 0
         if existing_count > 0:
+            _staff_seeded_flag = True
             return
 
         defaults = [
@@ -1928,8 +1934,8 @@ async def _cumulative_data(date_from: str, date_to: str, only_unpaid: bool):
                 POSTransaction.date,
                 POSTransaction.type,
                 POSTransaction.net_price,
-                POSTransaction.other_charges_and_taxes,
-                POSTransactionStaff.share_percentage,
+                POSTransaction.other,
+                POSTransactionStaff.pct,
                 POSTransaction.item_name,
                 POSTransaction.quantity,
             )

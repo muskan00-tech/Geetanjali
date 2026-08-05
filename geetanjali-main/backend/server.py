@@ -431,6 +431,9 @@ async def _staff_day_product_incentive(staff_name: str, day: str, rules: List[di
             map_rows = (await session.execute(select(ProductIncentiveMapping))).scalars().all()
             mappings = {m.pos_item_name: m.to_dict() for m in map_rows}
 
+        sku_rows = (await session.execute(select(SKU))).scalars().all()
+        sku_brand_map = {s.name.strip(): (s.vendor_name or s.category or "") for s in sku_rows if s.name}
+
         q = (
             select(POSTransaction)
             .options(selectinload(POSTransaction.staff_shares))
@@ -445,13 +448,8 @@ async def _staff_day_product_incentive(staff_name: str, day: str, rules: List[di
         rows = result.scalars().unique().all()
         for r in rows:
             share = next((s.pct for s in r.staff_shares if s.name.strip().lower() == staff_lc), 100) / 100
-            brand = ""
-            sku_result = await session.execute(select(SKU).where(SKU.name == (r.item_name or "").strip()))
-            sku = sku_result.scalar_one_or_none()
-            if sku:
-                brand = sku.vendor_name or sku.category or ""
+            brand = sku_brand_map.get((r.item_name or "").strip(), "")
             total += calc_product_incentive(r.item_name or "", brand, r.net_price or 0, r.quantity or 1, rules, mappings) * share
-    return round(total, 2)
     return round(total, 2)
 
 
@@ -1145,29 +1143,86 @@ async def _staff_month_revenue(staff_name: str, month: str) -> Dict[str, float]:
 async def incentives_daily(day: str):
     await _auto_sync_staff_from_pos()
     cfg = await get_config()
+    legacy_pct = (cfg.get("retail_commission_pct", 0) or 0) / 100.0
+    product_rules = cfg.get("product_incentives", [])
+
     async with async_session() as session:
-        result = await session.execute(
+        staff_list = (await session.execute(
             select(Staff).where(func.lower(Staff.role) != "owner", ~func.lower(Staff.name).contains("abhimanyu"))
+        )).scalars().all()
+
+        # Batch 1: All payouts for day
+        payout_rows = (await session.execute(select(Payout).where(Payout.payout_date == day))).scalars().all()
+        payout_map = {p.staff_id: p for p in payout_rows}
+
+        # Batch 2: Product mappings + SKU brand map
+        map_rows = (await session.execute(select(ProductIncentiveMapping))).scalars().all()
+        mappings = {m.pos_item_name: m.to_dict() for m in map_rows}
+        sku_rows = (await session.execute(select(SKU))).scalars().all()
+        sku_brand_map = {s.name.strip(): (s.vendor_name or s.category or "") for s in sku_rows if s.name}
+
+        # Batch 3: All POS transactions + staff shares for day
+        q = (
+            select(
+                func.lower(func.trim(POSTransactionStaff.name)).label("staff_name_lc"),
+                POSTransaction.type,
+                POSTransaction.net_price,
+                POSTransaction.other,
+                POSTransactionStaff.pct,
+                POSTransaction.item_name,
+                POSTransaction.quantity
+            )
+            .join(POSTransactionStaff, POSTransaction.id == POSTransactionStaff.transaction_id)
+            .where(POSTransaction.date == day)
         )
-        staff_list = result.scalars().all()
+        tx_rows = (await session.execute(q)).all()
+
+    # Aggregate in memory
+    staff_service = {}
+    staff_retail = {}
+    staff_prod_inc = {}
+
+    for row in tx_rows:
+        staff_lc = str(row[0] or "").strip().lower()
+        t_type = str(row[1] or "").strip().lower()
+        net_price = float(row[2] or 0.0)
+        other_val = float(row[3] or 0.0)
+        share_pct = float(row[4] or 100.0)
+        item_name = str(row[5] or "")
+        qty = float(row[6] or 1.0)
+
+        if staff_lc not in staff_service:
+            staff_service[staff_lc] = 0.0
+            staff_retail[staff_lc] = 0.0
+            staff_prod_inc[staff_lc] = 0.0
+
+        if t_type == "service":
+            eligible_amt = calc_eligible_service_amount(net_price, other_val)
+            staff_service[staff_lc] += calc_staff_eligible_value(eligible_amt, share_pct)
+        elif t_type in ("product", "retail"):
+            staff_retail[staff_lc] += net_price * (share_pct / 100.0)
+            brand = sku_brand_map.get(item_name.strip(), "")
+            prod_val = calc_product_incentive(item_name, brand, net_price, qty, product_rules, mappings)
+            if prod_val > 0:
+                staff_prod_inc[staff_lc] += prod_val * (share_pct / 100.0)
+
     out = []
     for s in staff_list:
-        rev = await _staff_day_revenue(s.name, day)
-        bonus = calc_daily_bonus(rev["service"], cfg["staff_daily_tiers"])
-        product_inc = await _staff_day_product_incentive(s.name, day, cfg.get("product_incentives", []))
-        legacy_pct = cfg.get("retail_commission_pct", 0)
-        retail_comm = round(rev["retail"] * (legacy_pct / 100), 2) if legacy_pct else 0
-        async with async_session() as session2:
-            payout_result = await session2.execute(
-                select(Payout).where(Payout.staff_id == s.id, Payout.payout_date == day)
-            )
-            payout = payout_result.scalar_one_or_none()
+        s_lc = s.name.strip().lower()
+        serv = round(staff_service.get(s_lc, 0.0), 2)
+        ret = round(staff_retail.get(s_lc, 0.0), 2)
+        prod_inc = round(staff_prod_inc.get(s_lc, 0.0), 2)
+
+        bonus = calc_daily_bonus(serv, cfg["staff_daily_tiers"])
+        retail_comm = round(ret * legacy_pct, 2) if legacy_pct else 0.0
+        payout = payout_map.get(s.id)
+
         out.append({
             "staff_id": s.id, "staff_name": s.name, "base_salary": s.base_salary,
-            "service_revenue": bonus["service_revenue"], "retail_revenue": round(rev["retail"], 2),
+            "service_revenue": bonus["service_revenue"], "retail_revenue": ret,
             "tier": bonus["tier"], "daily_bonus": bonus["bonus"],
-            "product_incentive": product_inc, "retail_commission": retail_comm,
-            "total_earned": bonus["bonus"] + product_inc + retail_comm,
+            "product_incentive": prod_inc, "retail_commission": retail_comm,
+            "total_earned": bonus["bonus"] + prod_inc + retail_comm,
             "confirmed": bool(payout),
             "confirmed_at": payout.confirmed_at if payout else None,
         })
@@ -1364,41 +1419,69 @@ async def incentives_monthly_details(staff_name: str, month: str):
 async def incentives_monthly(month: str):
     await _auto_sync_staff_from_pos()
     cfg = await get_config()
+    bonuses_config = cfg.get("prepaid_card_bonuses", [])
+    retail_comm_pct = (cfg.get("retail_commission_pct", 0) or 0) / 100.0
+
     async with async_session() as session:
         staff_list = (await session.execute(
             select(Staff).where(func.lower(Staff.role) != "owner", ~func.lower(Staff.name).contains("abhimanyu"))
         )).scalars().all()
+
+        # Single batch query for all transactions + staff shares in target month
+        q = (
+            select(
+                func.lower(func.trim(POSTransactionStaff.name)).label("staff_name_lc"),
+                POSTransaction.type,
+                POSTransaction.net_price,
+                POSTransaction.other,
+                POSTransactionStaff.pct,
+                POSTransaction.item_name
+            )
+            .join(POSTransactionStaff, POSTransaction.id == POSTransactionStaff.transaction_id)
+            .where(POSTransaction.date.like(f"{month}%"))
+        )
+        tx_rows = (await session.execute(q)).all()
+
+    # Aggregate by staff_name_lc in memory
+    staff_revs = {}
+    staff_prepaid_bonuses = {}
+
+    for row in tx_rows:
+        staff_lc = str(row[0] or "").strip().lower()
+        t_type = str(row[1] or "").strip().lower()
+        net_price = float(row[2] or 0.0)
+        other_val = float(row[3] or 0.0)
+        share_pct = float(row[4] or 100.0)
+        item_name = str(row[5] or "")
+
+        if staff_lc not in staff_revs:
+            staff_revs[staff_lc] = {"service": 0.0, "retail": 0.0}
+            staff_prepaid_bonuses[staff_lc] = 0.0
+
+        if t_type == "service":
+            eligible_amt = calc_eligible_service_amount(net_price, other_val)
+            staff_revs[staff_lc]["service"] += calc_staff_eligible_value(eligible_amt, share_pct)
+        elif t_type in ("product", "retail"):
+            staff_revs[staff_lc]["retail"] += net_price * (share_pct / 100.0)
+
+        p_val = calc_prepaid_card_bonus(item_name, bonuses_config)
+        if p_val > 0:
+            staff_prepaid_bonuses[staff_lc] += p_val * (share_pct / 100.0)
+
     out = []
     for s in staff_list:
-        rev = await _staff_month_revenue(s.name, month)
-        service = rev["service"]
-        retail = rev["retail"]
-
-        # Calculate prepaid card sale bonuses
-        async with async_session() as session2:
-            tx_result = await session2.execute(
-                select(POSTransaction.item_name, POSTransactionStaff.pct)
-                .join(POSTransactionStaff)
-                .where(
-                    POSTransaction.date.like(f"{month}%"),
-                    func.lower(func.trim(POSTransactionStaff.name)) == s.name.strip().lower()
-                )
-            )
-            prepaid_card_bonus_sum = 0.0
-            bonuses = cfg.get("prepaid_card_bonuses", [])
-            for row in tx_result.all():
-                item_name = row[0] or ""
-                share_pct = row[1] or 100.0
-                val = calc_prepaid_card_bonus(item_name, bonuses)
-                if val > 0:
-                    prepaid_card_bonus_sum += val * (share_pct / 100)
-            prepaid_card_bonus_sum = round(prepaid_card_bonus_sum, 2)
+        s_lc = s.name.strip().lower()
+        rev = staff_revs.get(s_lc, {"service": 0.0, "retail": 0.0})
+        service = round(rev["service"], 2)
+        retail = round(rev["retail"], 2)
+        prepaid_card_bonus_sum = round(staff_prepaid_bonuses.get(s_lc, 0.0), 2)
 
         monthly = calc_monthly_bonus(service, s.base_salary, cfg["staff_monthly_multipliers"])
-        retail_comm = round(retail * (cfg.get("retail_commission_pct", 0) / 100), 2)
+        retail_comm = round(retail * retail_comm_pct, 2)
+
         out.append({
             "staff_id": s.id, "staff_name": s.name, "base_salary": s.base_salary,
-            "monthly_service_revenue": round(service, 2), "monthly_retail_revenue": round(retail, 2),
+            "monthly_service_revenue": service, "monthly_retail_revenue": retail,
             "ratio": monthly["ratio"], "pct": monthly["pct"],
             "efficiency_bonus": monthly["amount"], "retail_commission": retail_comm,
             "prepaid_card_bonus": prepaid_card_bonus_sum,

@@ -2022,7 +2022,10 @@ async def _cumulative_data(date_from: str, date_to: str, only_unpaid: bool):
 
 @api.get("/reports/cumulative-payouts")
 async def cumulative_payouts(date_from: str, date_to: str, only_unpaid: bool = True):
-    return await _cumulative_data(date_from, date_to, only_unpaid)
+    try:
+        return await _cumulative_data(date_from, date_to, only_unpaid)
+    except Exception as e:
+        return {"error": str(e), "trace": traceback.format_exc()}
 
 @api.get("/reports/monthly-incentives.xlsx")
 async def export_monthly_incentives_xlsx(month: str):

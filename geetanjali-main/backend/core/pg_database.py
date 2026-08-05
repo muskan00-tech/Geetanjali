@@ -30,6 +30,38 @@ if not raw_url:
     raise RuntimeError("FATAL: PG_DATABASE_URL is not set. The application requires a valid PostgreSQL connection string.")
 
 import re
+from urllib.parse import quote, unquote
+
+def fix_db_url_password(url_str: str) -> str:
+    """Automatically URL-encodes special characters like '@' in database passwords."""
+    try:
+        # Split on scheme
+        if "://" not in url_str:
+            return url_str
+        scheme, rest = url_str.split("://", 1)
+        if "@" not in rest or ":" not in rest:
+            return url_str
+            
+        # Find last @ before host (host starts after last @ or last @ before slash/colon)
+        # Handle case where password has '@' e.g. user:pass@word@host:5432/db
+        parts = rest.split("@")
+        if len(parts) > 2:
+            # Reconstruct: user:pass is everything up to last @ before host
+            host_part = parts[-1]
+            user_pass_part = "@".join(parts[:-1])
+            if ":" in user_pass_part:
+                user, password = user_pass_part.split(":", 1)
+                encoded_pass = quote(unquote(password), safe='')
+                return f"{scheme}://{user}:{encoded_pass}@{host_part}"
+        elif len(parts) == 2:
+            user_pass_part, host_part = parts[0], parts[1]
+            if ":" in user_pass_part:
+                user, password = user_pass_part.split(":", 1)
+                encoded_pass = quote(unquote(password), safe='')
+                return f"{scheme}://{user}:{encoded_pass}@{host_part}"
+    except Exception:
+        pass
+    return url_str
 
 # Standardize URL driver to postgresql+asyncpg://
 DATABASE_URL = raw_url
@@ -46,6 +78,9 @@ DATABASE_URL = re.sub(r'[\?&]sslmode=[^&]+', '', DATABASE_URL)
 DATABASE_URL = re.sub(r'[\?&]ssl=[^&]+', '', DATABASE_URL)
 if "?" not in DATABASE_URL and "&" in DATABASE_URL:
     DATABASE_URL = DATABASE_URL.replace("&", "?", 1)
+
+# Automatically encode special characters in password
+DATABASE_URL = fix_db_url_password(DATABASE_URL)
 
 
 class Base(DeclarativeBase):

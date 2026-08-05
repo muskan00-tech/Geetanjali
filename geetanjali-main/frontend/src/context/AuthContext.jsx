@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import api from "../lib/api";
-import { auth, googleProvider, signInWithPopup, signInWithEmailAndPassword, firebaseSignOut } from "../lib/firebase";
+import { auth, googleProvider, signInWithPopup, firebaseSignOut } from "../lib/firebase";
 
 const AuthContext = createContext(null);
 
@@ -27,32 +27,16 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (email, password) => {
-    try {
-      const { data } = await api.post("/auth/login", { email, password });
-      if (data.token) localStorage.setItem("lss_token", data.token);
-      setUser(data);
-      return data;
-    } catch (err) {
-      try {
-        const fbRes = await signInWithEmailAndPassword(auth, email, password);
-        const token = await fbRes.user.getIdToken();
-        const userData = {
-          id: fbRes.user.uid,
-          email: fbRes.user.email,
-          name: fbRes.user.displayName || fbRes.user.email.split("@")[0],
-          role: "owner",
-          token: token,
-        };
-        localStorage.setItem("lss_token", token);
-        setUser(userData);
-        return userData;
-      } catch (fbErr) {
-        throw err;
-      }
-    }
+    const { data } = await api.post("/auth/login", { email, password });
+    if (data.token) localStorage.setItem("lss_token", data.token);
+    setUser(data);
+    return data;
   };
 
   const loginWithGoogle = async () => {
+    if (!process.env.REACT_APP_FIREBASE_API_KEY) {
+      throw new Error("Firebase Google Sign-In requires REACT_APP_FIREBASE_API_KEY.");
+    }
     const res = await signInWithPopup(auth, googleProvider);
     const token = await res.user.getIdToken();
     const userData = {

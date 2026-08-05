@@ -3263,9 +3263,9 @@ async def startup():
     try:
         async with async_session() as session:
             # Seed users
-            async def seed_user(email_key, pw_key, name, role):
-                email = os.environ.get(email_key, "").lower().strip()
-                pw = os.environ.get(pw_key, "")
+            async def seed_user(email_key, default_email, pw_key, default_pw, name, role):
+                email = os.environ.get(email_key, default_email).lower().strip()
+                pw = os.environ.get(pw_key, default_pw)
                 if not email or not pw:
                     return
                 existing = (await session.execute(select(User).where(User.email == email))).scalar_one_or_none()
@@ -3277,8 +3277,8 @@ async def startup():
                 elif not verify_pw(pw, existing.password_hash):
                     existing.password_hash = hash_pw(pw)
 
-            await seed_user("OWNER_EMAIL", "OWNER_PASSWORD", "Salon Owner", "owner")
-            await seed_user("MANAGER_EMAIL", "MANAGER_PASSWORD", "Salon Manager", "manager")
+            await seed_user("OWNER_EMAIL", "owner@geetanjalisalon.com", "OWNER_PASSWORD", "OwnerSecurePass123!", "Salon Owner", "owner")
+            await seed_user("MANAGER_EMAIL", "manager@geetanjalisalon.com", "MANAGER_PASSWORD", "ManagerSecurePass123!", "Salon Manager", "manager")
 
             # Seed config
             existing_cfg = (await session.execute(select(AppConfig).where(AppConfig.id == "master"))).scalar_one_or_none()

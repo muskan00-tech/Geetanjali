@@ -764,12 +764,12 @@ async def login(payload: LoginIn, response: Response):
     if not u or not verify_pw(payload.password, u.password_hash):
         raise HTTPException(401, "Invalid credentials")
     token = make_token(u.id, u.role)
-    response.set_cookie("access_token", token, httponly=True, samesite="lax", max_age=604800, path="/")
+    response.set_cookie("access_token", token, httponly=True, samesite="none", secure=True, max_age=604800, path="/")
     return {"id": u.id, "email": u.email, "name": u.name, "role": u.role, "token": token}
 
 @api.post("/auth/logout")
 async def logout(response: Response):
-    response.delete_cookie("access_token", path="/")
+    response.delete_cookie("access_token", path="/", samesite="none", secure=True)
     return {"ok": True}
 
 @api.get("/auth/me")

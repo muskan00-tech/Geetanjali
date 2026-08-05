@@ -3281,27 +3281,47 @@ async def list_attendance(date_val: Optional[str] = Query(None, alias="date"),
 async def attendance_summary(month: str):
     async with async_session() as session:
         staff_list = (await session.execute(select(Staff))).scalars().all()
+        
+        q = (
+            select(
+                Attendance.staff_id,
+                Attendance.status,
+                func.count(Attendance.id),
+                func.sum(Attendance.hours_worked),
+                func.sum(Attendance.overtime_hours)
+            )
+            .where(Attendance.date.like(f"{month}%"))
+            .group_by(Attendance.staff_id, Attendance.status)
+        )
+        att_rows = (await session.execute(q)).all()
+
+        staff_data = defaultdict(lambda: {"present": 0, "absent": 0, "half_day": 0, "leave": 0, "hours": 0.0, "overtime": 0.0})
+        for row in att_rows:
+            sid, status, cnt, hrs, ot = row[0], row[1], row[2] or 0, row[3] or 0.0, row[4] or 0.0
+            data = staff_data[sid]
+            if status == "present":
+                data["present"] += cnt
+                data["hours"] += hrs
+                data["overtime"] += ot
+            elif status == "absent":
+                data["absent"] += cnt
+            elif status == "half_day":
+                data["half_day"] += cnt
+                data["hours"] += hrs
+            elif status == "leave":
+                data["leave"] += cnt
+
         summaries = []
         for s in staff_list:
-            q = (
-                select(Attendance.status, func.count(), func.sum(Attendance.hours_worked), func.sum(Attendance.overtime_hours))
-                .where(Attendance.staff_id == s.id, Attendance.date.like(f"{month}%"))
-                .group_by(Attendance.status)
-            )
-            result = await session.execute(q)
-            present = absent = half_day = leave = 0
-            total_hours = total_overtime = 0.0
-            for row in result.all():
-                if row[0] == "present": present = row[1]; total_hours += row[2] or 0; total_overtime += row[3] or 0
-                elif row[0] == "absent": absent = row[1]
-                elif row[0] == "half_day": half_day = row[1]; total_hours += row[2] or 0
-                elif row[0] == "leave": leave = row[1]
-            effective_days = present + half_day * 0.5
-            calculated_salary = round(s.base_salary / 30 * effective_days, 2)
+            d = staff_data[s.id]
+            p, a, hd, l = d["present"], d["absent"], d["half_day"], d["leave"]
+            tot_h, tot_ot = d["hours"], d["overtime"]
+            effective_days = p + hd * 0.5
+            calculated_salary = round((s.base_salary or 25000.0) / 30 * effective_days, 2)
             summaries.append({
                 "staff_id": s.id, "staff_name": s.name, "base_salary": s.base_salary,
-                "days_present": present, "days_absent": absent, "days_half_day": half_day, "days_leave": leave,
-                "total_hours": round(total_hours, 2), "total_overtime": round(total_overtime, 2),
+                "days_present": p, "days_absent": a, "days_half_day": hd, "days_leave": l,
+                "total_hours": round(tot_h, 2), "total_overtime": round(tot_ot, 2),
                 "effective_days": effective_days, "calculated_salary": calculated_salary,
             })
         return {"month": month, "summaries": summaries}

@@ -104,7 +104,7 @@ def create_engine_and_session(url: str):
             pool_size=int(os.environ.get("DB_POOL_SIZE", 10)),
             max_overflow=int(os.environ.get("DB_MAX_OVERFLOW", 20)),
             pool_pre_ping=True,
-            pool_recycle=1800,
+            pool_recycle=300,
             connect_args=connect_args,
         )
     _async_session_factory = async_sessionmaker(_engine, class_=AsyncSession, expire_on_commit=False)

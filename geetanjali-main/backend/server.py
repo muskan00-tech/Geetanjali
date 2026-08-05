@@ -1005,56 +1005,48 @@ async def list_staff():
             staff_list = result.scalars().all()
         return [s.to_dict() for s in staff_list]
 
-class StaffBulkRow(BaseModel):
-    id: Optional[str] = None
-    name: str
-    department: Optional[str] = "STYLIST"
-    base_salary: float = 25000.0
-    _new: Optional[bool] = False
-    _delete: Optional[bool] = False
-
 @api.post("/staff/bulk-update")
-async def bulk_update_staff(rows: List[StaffBulkRow], user: dict = Depends(require_role("owner", "manager", "admin"))):
+async def bulk_update_staff(rows: List[dict] = Body(...), user: dict = Depends(require_role("owner", "manager", "admin"))):
     async with async_session() as session:
         saved_count = 0
         deleted_count = 0
         for r in rows:
-            if not r.name.strip():
+            name = str(r.get("name", "")).strip()
+            if not name:
                 continue
-            if r._delete and r.id and not r._new:
-                existing = (await session.execute(select(Staff).where(Staff.id == r.id))).scalar_one_or_none()
+            is_delete = bool(r.get("_delete") or r.get("is_delete"))
+            is_new = bool(r.get("_new") or r.get("is_new"))
+            staff_id = r.get("id")
+            dept = str(r.get("department") or r.get("role") or "STYLIST").strip()
+            sal = float(r.get("base_salary") or 25000.0)
+
+            if is_delete and staff_id and not is_new:
+                existing = (await session.execute(select(Staff).where(Staff.id == staff_id))).scalar_one_or_none()
                 if existing:
                     await session.delete(existing)
                     deleted_count += 1
-            elif not r._delete:
-                if r.id and not r._new:
-                    existing = (await session.execute(select(Staff).where(Staff.id == r.id))).scalar_one_or_none()
+            elif not is_delete:
+                if staff_id and not is_new:
+                    existing = (await session.execute(select(Staff).where(Staff.id == staff_id))).scalar_one_or_none()
                     if existing:
-                        existing.name = r.name.strip()
-                        existing.department = (r.department or "").strip()
-                        existing.base_salary = float(r.base_salary)
+                        existing.name = name
+                        existing.department = dept
+                        existing.base_salary = sal
+                        existing.role = "manager" if dept.upper() == "MANAGER" else "staff"
                         saved_count += 1
                     else:
-                        new_s = Staff(
-                            id=new_id(),
-                            name=r.name.strip(),
-                            department=(r.department or "").strip(),
-                            role="manager" if (r.department or "").upper() == "MANAGER" else "staff",
-                            base_salary=float(r.base_salary),
-                            created_at=now_utc()
-                        )
-                        session.add(new_s)
+                        session.add(Staff(
+                            id=new_id(), name=name, department=dept,
+                            role="manager" if dept.upper() == "MANAGER" else "staff",
+                            base_salary=sal, created_at=now_utc()
+                        ))
                         saved_count += 1
                 else:
-                    new_s = Staff(
-                        id=new_id(),
-                        name=r.name.strip(),
-                        department=(r.department or "").strip(),
-                        role="manager" if (r.department or "").upper() == "MANAGER" else "staff",
-                        base_salary=float(r.base_salary),
-                        created_at=now_utc()
-                    )
-                    session.add(new_s)
+                    session.add(Staff(
+                        id=new_id(), name=name, department=dept,
+                        role="manager" if dept.upper() == "MANAGER" else "staff",
+                        base_salary=sal, created_at=now_utc()
+                    ))
                     saved_count += 1
         await session.commit()
         return {"ok": True, "saved": saved_count, "deleted": deleted_count}

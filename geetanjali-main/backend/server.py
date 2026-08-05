@@ -1939,7 +1939,7 @@ async def _cumulative_data(date_from: str, date_to: str, only_unpaid: bool):
                 POSTransaction.item_name,
                 POSTransaction.quantity,
             )
-            .join(POSTransactionStaff, POSTransactionStaff.pos_transaction_id == POSTransaction.id)
+            .join(POSTransactionStaff, POSTransactionStaff.transaction_id == POSTransaction.id)
             .where(
                 POSTransaction.date >= date_from,
                 POSTransaction.date <= date_to

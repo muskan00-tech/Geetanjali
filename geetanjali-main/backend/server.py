@@ -2617,7 +2617,7 @@ async def get_config_ep():
     return await get_config()
 
 @api.put("/config")
-async def update_config(payload: ConfigUpdateIn, user: dict = Depends(require_role("owner", "admin"))):
+async def update_config(payload: ConfigUpdateIn, user: dict = Depends(require_role("owner", "admin", "manager"))):
     updates = {k: v for k, v in payload.model_dump(exclude_none=True).items()}
     async with async_session() as session:
         result = await session.execute(select(AppConfig).where(AppConfig.id == "master"))

@@ -30,8 +30,8 @@ DEFAULT_CONFIG = {
         {"brand": "kerastase", "brand_display": "Kérastase", "min_price": 1, "max_price": 3000, "amount": 50},
         {"brand": "kerastase", "brand_display": "Kérastase", "min_price": 3001, "max_price": 6000, "amount": 100},
         {"brand": "kerastase", "brand_display": "Kérastase", "min_price": 6001, "max_price": 9000, "amount": 150},
-        {"brand": "kerastase", "brand_display": "Kérastase", "min_price": 9001, "max_price": 12000, "amount": 200},
-        {"brand": "kerastase", "brand_display": "Kérastase", "min_price": 12001, "max_price": 999999, "amount": 250},
+        {"brand": "kerastase", "brand_display": "Kérastase", "min_price": 9001, "max_price": 12000, "amount": 250},
+        {"brand": "kerastase", "brand_display": "Kérastase", "min_price": 12001, "max_price": 999999, "amount": 500},
         # Olaplex
         {"brand": "olaplex", "brand_display": "Olaplex", "min_price": 1, "max_price": 3000, "amount": 50},
         {"brand": "olaplex", "brand_display": "Olaplex", "min_price": 3001, "max_price": 5000, "amount": 100},

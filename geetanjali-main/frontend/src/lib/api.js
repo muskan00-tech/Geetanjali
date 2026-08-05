@@ -5,15 +5,30 @@ export const API = `${BACKEND_URL}/api`;
 
 const api = axios.create({
   baseURL: API,
-  withCredentials: true,
+  timeout: 60000,
 });
 
-// Attach bearer token as fallback (cookies also carry it)
+// Attach bearer token on requests
 api.interceptors.request.use((cfg) => {
   const t = localStorage.getItem("lss_token");
   if (t) cfg.headers.Authorization = `Bearer ${t}`;
   return cfg;
 });
+
+// Auto-retry once on network error / cold-start 50x
+api.interceptors.response.use(
+  (res) => res,
+  async (err) => {
+    const cfg = err.config;
+    if (!cfg || cfg._retry) return Promise.reject(err);
+    if (!err.response || err.response.status >= 500) {
+      cfg._retry = true;
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+      return api(cfg);
+    }
+    return Promise.reject(err);
+  }
+);
 
 export default api;
 
@@ -29,6 +44,9 @@ export const moneyFull = (n) => {
 
 export const errMsg = (e) => {
   const d = e?.response?.data?.detail;
+  if (e?.code === "ECONNABORTED" || e?.message?.includes("timeout")) {
+    return "Server is warming up. Retrying automatically...";
+  }
   if (!d) return e?.message || "Something went wrong";
   if (typeof d === "string") return d;
   if (Array.isArray(d)) return d.map((x) => x?.msg || JSON.stringify(x)).join(", ");

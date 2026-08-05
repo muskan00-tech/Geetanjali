@@ -814,38 +814,42 @@ async def me(user: dict = Depends(get_current_user)):
 @api.get("/dashboard/owner")
 async def get_owner_dashboard(user: dict = Depends(get_current_user)):
     async with async_session() as session:
-        skus_res = await session.execute(select(SKU))
-        skus = skus_res.scalars().all()
-        working_capital = sum(float(s.unit_cost or 0) * (float(s.store_qty or 0) + float(s.floor_qty or 0)) for s in skus)
+        # SKUs & working capital
+        skus_res = await session.execute(select(SKU.unit_cost, SKU.store_qty, SKU.floor_qty, SKU.retail_qty))
+        skus = skus_res.all()
+        working_capital = sum(float(r.unit_cost or 0) * (float(r.store_qty or 0) + float(r.floor_qty or 0) + float(r.retail_qty or 0)) for r in skus)
         sku_count = len(skus)
-        
+
+        # Quality alerts (POS full-discount flags)
         qual_res = await session.execute(
             select(func.count(POSTransaction.id)).where(POSTransaction.is_quality_failure == True)
         )
-        quality_alerts = qual_res.scalar() or 0
-        
+        quality_alerts = int(qual_res.scalar() or 0)
+
+        # Inventory leakage (checkouts)
         leakage_res = await session.execute(
-            select(func.coalesce(func.sum(Checkout.product_qty), 0))
+            select(func.coalesce(func.sum(Checkout.quantity), 0))
         )
-        leakage_units = leakage_res.scalar() or 0
-        
+        leakage_units = int(leakage_res.scalar() or 0)
+
+        # Revenue by type
         srv_res = await session.execute(
             select(func.coalesce(func.sum(POSTransaction.net_price), 0)).where(POSTransaction.type == "Service")
         )
         total_service_revenue = float(srv_res.scalar() or 0.0)
-        
+
         rtl_res = await session.execute(
             select(func.coalesce(func.sum(POSTransaction.net_price), 0)).where(POSTransaction.type == "Product")
         )
         total_retail_revenue = float(rtl_res.scalar() or 0.0)
-        
-        staff_res = await session.execute(select(func.count(Staff.id)))
-        staff_count = staff_res.scalar() or 0
-        
-        payout_res = await session.execute(
-            select(func.count(Payout.id)).where(Payout.status == "pending")
-        )
-        pending_payouts = payout_res.scalar() or 0
+
+        # Staff count
+        staff_res = await session.execute(select(func.count(Staff.id)).where(Staff.is_active == True))
+        staff_count = int(staff_res.scalar() or 0)
+
+        # Pending payouts count
+        payout_res = await session.execute(select(func.count(Payout.id)))
+        pending_payouts = int(payout_res.scalar() or 0)
 
         monthly_chart = [
             {"month": "May", "revenue": 1420000},
@@ -855,7 +859,7 @@ async def get_owner_dashboard(user: dict = Depends(get_current_user)):
         ]
 
     return {
-        "working_capital": working_capital,
+        "working_capital": round(working_capital, 2),
         "sku_count": sku_count,
         "quality_alerts": quality_alerts,
         "leakage_units": leakage_units,
@@ -865,6 +869,7 @@ async def get_owner_dashboard(user: dict = Depends(get_current_user)):
         "staff_count": staff_count,
         "monthly_chart": monthly_chart
     }
+
 
 # ------------------ POS ------------------
 @api.post("/pos/upload")

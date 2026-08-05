@@ -70,6 +70,11 @@ api = APIRouter(prefix="/api")
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("lss")
 
+@app.get("/health")
+@api.get("/health")
+async def health_check():
+    return {"status": "ok", "fast": True}
+
 # ------------------ Helpers ------------------
 def now_utc() -> str:
     return datetime.now(timezone.utc).isoformat()

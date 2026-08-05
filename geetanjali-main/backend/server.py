@@ -1000,32 +1000,31 @@ async def bulk_update_staff(rows: List[dict] = Body(...), user: dict = Depends(r
             dept = str(r.get("department") or r.get("role") or "STYLIST").strip()
             sal = float(r.get("base_salary") or 25000.0)
 
-            if is_delete and staff_id and not is_new:
-                existing = (await session.execute(select(Staff).where(Staff.id == staff_id))).scalar_one_or_none()
+            existing = None
+            if staff_id and not str(staff_id).startswith("new_") and not is_new:
+                res = await session.execute(select(Staff).where(Staff.id == str(staff_id)))
+                existing = res.scalar_one_or_none()
+
+            if not existing:
+                res = await session.execute(select(Staff).where(func.lower(func.trim(Staff.name)) == name.lower()))
+                existing = res.scalar_one_or_none()
+
+            if is_delete:
                 if existing:
                     await session.delete(existing)
                     deleted_count += 1
-            elif not is_delete:
-                if staff_id and not is_new:
-                    existing = (await session.execute(select(Staff).where(Staff.id == staff_id))).scalar_one_or_none()
-                    if existing:
-                        existing.name = name
-                        existing.department = dept
-                        existing.base_salary = sal
-                        existing.role = "manager" if dept.upper() == "MANAGER" else "staff"
-                        saved_count += 1
-                    else:
-                        session.add(Staff(
-                            id=new_id(), name=name, department=dept,
-                            role="manager" if dept.upper() == "MANAGER" else "staff",
-                            base_salary=sal, created_at=now_utc()
-                        ))
-                        saved_count += 1
+            else:
+                role_val = "manager" if dept.upper() == "MANAGER" else "staff"
+                if existing:
+                    existing.name = name
+                    existing.department = dept
+                    existing.base_salary = sal
+                    existing.role = role_val
+                    saved_count += 1
                 else:
                     session.add(Staff(
                         id=new_id(), name=name, department=dept,
-                        role="manager" if dept.upper() == "MANAGER" else "staff",
-                        base_salary=sal, created_at=now_utc()
+                        role=role_val, base_salary=sal, created_at=now_utc()
                     ))
                     saved_count += 1
         await session.commit()
@@ -2785,19 +2784,35 @@ async def update_inventory_product(sku_id: str, payload: InventoryProductIn, use
     async with async_session() as session:
         result = await session.execute(select(SKU).where(SKU.id == sku_id))
         sku = result.scalar_one_or_none()
+        if not sku and payload.name:
+            res_name = await session.execute(select(SKU).where(func.lower(func.trim(SKU.name)) == payload.name.strip().lower()))
+            sku = res_name.scalar_one_or_none()
+
         if not sku:
             raise HTTPException(404, "Product not found")
-        sku.name = payload.name.strip()
+
+        if payload.name:
+            sku.name = payload.name.strip()
         sku.category = payload.category or sku.category
         sku.brand = payload.brand or sku.brand
         sku.vendor_name = payload.vendor_name or sku.vendor_name
         sku.unit = payload.unit or sku.unit
-        sku.unit_cost = payload.unit_cost
-        sku.mrp = payload.mrp
-        sku.selling_price = payload.selling_price
-        sku.min_stock = payload.min_stock
-        sku.reorder_level = payload.reorder_level
-        sku.store_qty = payload.store_qty if payload.store_qty is not None else sku.store_qty
+        if payload.unit_cost is not None:
+            sku.unit_cost = payload.unit_cost
+        if payload.mrp is not None:
+            sku.mrp = payload.mrp
+        if payload.selling_price is not None:
+            sku.selling_price = payload.selling_price
+        if payload.min_stock is not None:
+            sku.min_stock = payload.min_stock
+        if payload.reorder_level is not None:
+            sku.reorder_level = payload.reorder_level
+        if payload.store_qty is not None:
+            sku.store_qty = payload.store_qty
+        if payload.floor_qty is not None:
+            sku.floor_qty = payload.floor_qty
+        if payload.retail_qty is not None:
+            sku.retail_qty = payload.retail_qty
         sku.updated_at = now_utc()
         await session.commit()
         return sku.to_dict()

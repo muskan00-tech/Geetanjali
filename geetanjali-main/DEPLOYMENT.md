@@ -1,16 +1,25 @@
-# 🚀 Production Deployment Guide: Supabase + Render + Firebase Hosting
+# 🚀 Geetanjali Salon ERP — Production Architecture
 
-This document outlines the production deployment architecture for **Geetanjali Salon ERP**.
+The complete production deployment architecture for **Geetanjali Salon ERP**.
 
 ---
 
-## 🏗️ Deployment Architecture Overview
+## 🌐 Live Application URLs
+
+- 📱 **Frontend (Firebase Hosting)**: [https://geetanjali-707cc.web.app](https://geetanjali-707cc.web.app) *(Alternate: https://geetanjali-707cc.firebaseapp.com)*
+- ⚡ **Backend API (Render)**: [https://geetanjali-backend-4hxx.onrender.com](https://geetanjali-backend-4hxx.onrender.com)
+- 📚 **Interactive Swagger API Docs**: [https://geetanjali-backend-4hxx.onrender.com/docs](https://geetanjali-backend-4hxx.onrender.com/docs)
+- 🗄️ **Database (Supabase PostgreSQL 17)**: `aws-0-ap-northeast-1.pooler.supabase.com:6543`
+
+---
+
+## 🏗️ Deployment Architecture
 
 ```
  ┌─────────────────────────────────────────────────────────────┐
  │                   Firebase Hosting                          │
  │             (React 19 SPA Frontend)                         │
- │     https://geetanjali-salon.web.app                        │
+ │             https://geetanjali-707cc.web.app                │
  └──────────────────────────────┬──────────────────────────────┘
                                 │
                                 │ API Requests (HTTPS)
@@ -26,50 +35,20 @@ This document outlines the production deployment architecture for **Geetanjali S
  ┌─────────────────────────────────────────────────────────────┐
  │                  Supabase Cloud Database                    │
  │               (Managed PostgreSQL 17)                       │
- └─────────────────────────────────────────────────────────────┘
+ └──────────────────────────────┬──────────────────────────────┘
 ```
 
 ---
 
-## 🗄️ Step 1: Database on Supabase
+## 🔄 How to Redeploy Future Code Updates
 
-- **Engine**: PostgreSQL 17 (Northeast Asia Tokyo `ap-northeast-1`)
-- **Connection Mode**: PgBouncer Transaction Pooler (`aws-0-ap-northeast-1.pooler.supabase.com:6543`)
+1. **Backend Updates (Render)**:
+   - Push changes to GitHub `main` branch. Render automatically rebuilds and redeploys.
 
----
-
-## ⚡ Step 2: Backend on Render (LIVE)
-
-- **Live URL**: `https://geetanjali-backend-4hxx.onrender.com`
-- **Swagger API Docs**: `https://geetanjali-backend-4hxx.onrender.com/docs`
-- **Environment Variables**:
-  - `PG_DATABASE_URL`: `postgresql+asyncpg://postgres.pohkvawdfdzmivzyoabe:12693181140%25@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres`
-  - `ENVIRONMENT`: `production`
-
----
-
-## 🌐 Step 3: Frontend Deployment to Firebase Hosting
-
-To build and deploy the React frontend pointing to your live backend:
-
-1. Open terminal in the `frontend` folder:
-   ```bash
-   cd frontend
-   ```
-
-2. Build production static bundle:
-   ```bash
-   npm run build
-   ```
-
-3. Deploy to Firebase Hosting:
-   ```bash
-   firebase deploy --only hosting
-   ```
-
----
-
-## 🔄 Automatic CI/CD
-
-- **Backend (Render)**: Automatically builds & deploys when code is pushed to `main`.
-- **Frontend (Firebase)**: Run `npm run build && firebase deploy --only hosting` in `frontend/`.
+2. **Frontend Updates (Firebase Hosting)**:
+   - Open terminal in `frontend/` folder:
+     ```bash
+     cd frontend
+     npm run build
+     npx firebase-tools deploy --only hosting
+     ```

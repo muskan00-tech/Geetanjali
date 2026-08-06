@@ -115,7 +115,7 @@ export default function Login() {
                 onChange={(e) => setRememberMe(e.target.checked)}
                 className="w-4 h-4 rounded border-slate-300 text-[#C69A3A] focus:ring-amber-500/20"
               />
-              <span></span>
+              <span>Remember Me</span>
             </label>
           </div>
 

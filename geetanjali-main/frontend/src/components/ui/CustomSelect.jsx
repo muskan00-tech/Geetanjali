@@ -36,6 +36,10 @@ export default function CustomSelect({
   const updateCoords = () => {
     if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
+      if (rect.bottom < 0 || rect.top > window.innerHeight) {
+        setIsOpen(false);
+        return;
+      }
       setCoords({
         top: rect.bottom + 4,
         left: rect.left,
@@ -47,17 +51,16 @@ export default function CustomSelect({
   useEffect(() => {
     if (isOpen) {
       updateCoords();
-      const handleScroll = (e) => {
-        if (e.target && e.target.closest && e.target.closest(".custom-select-portal")) {
-          return;
-        }
-        setIsOpen(false);
+      const handleScroll = () => {
+        updateCoords();
       };
       window.addEventListener("scroll", handleScroll, true);
-      window.addEventListener("resize", () => setIsOpen(false));
+      document.addEventListener("scroll", handleScroll, true);
+      window.addEventListener("resize", updateCoords);
       return () => {
         window.removeEventListener("scroll", handleScroll, true);
-        window.removeEventListener("resize", () => setIsOpen(false));
+        document.removeEventListener("scroll", handleScroll, true);
+        window.removeEventListener("resize", updateCoords);
       };
     }
   }, [isOpen]);

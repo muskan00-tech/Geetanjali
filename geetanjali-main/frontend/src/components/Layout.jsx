@@ -91,9 +91,7 @@ export default function Layout() {
   const handleMouseEnter = () => {
     if (isPinned) return;
     if (hoverTimer.current) clearTimeout(hoverTimer.current);
-    hoverTimer.current = setTimeout(() => {
-      setIsHovered(true);
-    }, 150); // 150ms hover delay
+    setIsHovered(true);
   };
 
   const handleMouseLeave = () => {
@@ -171,7 +169,7 @@ export default function Layout() {
       <aside
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className={`fixed inset-y-0 left-0 z-50 h-full bg-white/25 backdrop-blur-2xl border-r border-[#E6DACD] flex flex-col transition-[width,transform] duration-200 ease-in-out shadow-xl lg:sticky lg:top-0 lg:h-screen lg:shrink-0 lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 h-full bg-white/25 backdrop-blur-2xl border-r border-[#E6DACD] flex flex-col transition-[width,transform] duration-100 ease-out shadow-xl lg:sticky lg:top-0 lg:h-screen lg:shrink-0 lg:translate-x-0 ${
           mobileOpen ? "w-64 translate-x-0" : `-translate-x-full lg:translate-x-0 ${isPinned || isHovered ? "lg:w-64" : "lg:w-20"}`
         }`}
       >
@@ -198,7 +196,7 @@ export default function Layout() {
         </button>
 
         {/* Header Logo */}
-        <div className={`py-5 border-b border-[#E6DACD] flex items-center shrink-0 bg-transparent transition-[padding,justify-content] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        <div className={`py-5 border-b border-[#E6DACD] flex items-center shrink-0 bg-transparent transition-[padding,justify-content] duration-100 ease-out ${
           isPinned || isHovered || mobileOpen ? "px-5 justify-between" : "px-3 justify-center"
         }`}>
           <GeetanjaliLogo size="md" collapsed={!isPinned && !isHovered && !mobileOpen} />
@@ -214,7 +212,7 @@ export default function Layout() {
 
         {/* Nav Body */}
         <nav className="flex-1 py-3 px-2 overflow-y-auto space-y-3 min-h-0 custom-scrollbar">
-          <AnimatePresence mode="wait">
+          <AnimatePresence>
             {isPinned || isHovered || mobileOpen ? (
               /* Expanded Full Menu */
               <motion.div
@@ -222,7 +220,7 @@ export default function Layout() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
+                transition={{ duration: 0.08, ease: "easeOut" }}
                 className="space-y-3"
               >
                 {navCategories.map((cat) => {
@@ -267,7 +265,7 @@ export default function Layout() {
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.18, ease: "easeInOut" }}
+                        transition={{ duration: 0.1, ease: "easeInOut" }}
                         className="overflow-hidden space-y-1 pl-1"
                       >
                         {allowedItems.map((it) => (

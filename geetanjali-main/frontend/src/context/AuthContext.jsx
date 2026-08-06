@@ -1,8 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import {
   auth,
-  googleProvider,
-  signInWithPopup,
   signInWithEmailAndPassword,
   firebaseSignOut,
   onAuthStateChanged
@@ -82,13 +80,6 @@ export function AuthProvider({ children }) {
     return userData;
   };
 
-  const loginWithGoogle = async () => {
-    const res = await signInWithPopup(auth, googleProvider);
-    const userData = await formatUser(res.user);
-    setUser(userData);
-    return userData;
-  };
-
   const logout = async () => {
     localStorage.removeItem("lss_token");
     localStorage.removeItem("lss_user");
@@ -98,7 +89,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, login, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, setUser, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Upload, Coins, Boxes, ClipboardCheck, Building2,
   Plus, Eye, Edit3, ArrowDownRight, ArrowUpRight, Clock, Trash2, Download
@@ -66,13 +66,22 @@ export default function InventoryHub() {
     fetchKpis();
   }, [statusFilter]);
 
+  const [displayLimit, setDisplayLimit] = useState(100);
+
   const fetchMasterData = async () => {
     setLoading(true);
     try {
       let url = `/inventory/master?category=All`;
       if (statusFilter !== "all") url += `&status=${statusFilter}`;
       const res = await api.get(url);
-      setProducts(res.data);
+      const prepared = (res.data || []).map((p) => ({
+        ...p,
+        _v: (p.vendor_name || "").toLowerCase(),
+        _n: (p.name || "").toLowerCase(),
+        _b: (p.brand || "").toLowerCase(),
+        _u: (p.unit || "").toLowerCase(),
+      }));
+      setProducts(prepared);
     } catch (e) {
       console.error(e);
     } finally {
@@ -89,22 +98,31 @@ export default function InventoryHub() {
     }
   };
 
-  const filteredProducts = products.filter((p) => {
-    if (colFilters.vendor && !p.vendor_name?.toLowerCase().includes(colFilters.vendor.toLowerCase())) return false;
-    if (colFilters.name && !p.name?.toLowerCase().includes(colFilters.name.toLowerCase())) return false;
-    if (colFilters.brand && !p.brand?.toLowerCase().includes(colFilters.brand.toLowerCase())) return false;
-    if (colFilters.category !== "All" && p.category !== colFilters.category) return false;
-    if (colFilters.unit && !p.unit?.toLowerCase().includes(colFilters.unit.toLowerCase())) return false;
-    if (colFilters.status !== "All") {
-      const curr = p.current_stock || 0;
-      const min = p.min_stock || 5;
-      const isOut = curr === 0;
-      const isLow = !isOut && curr <= min;
-      const statusStr = isOut ? "Out of Stock" : isLow ? "Low Stock" : "Active";
-      if (statusStr !== colFilters.status) return false;
-    }
-    return true;
-  });
+  const filteredProducts = useMemo(() => {
+    const v = (colFilters.vendor || "").trim().toLowerCase();
+    const n = (colFilters.name || "").trim().toLowerCase();
+    const b = (colFilters.brand || "").trim().toLowerCase();
+    const u = (colFilters.unit || "").trim().toLowerCase();
+    const cat = colFilters.category;
+    const st = colFilters.status;
+
+    return products.filter((p) => {
+      if (v && !p._v.includes(v)) return false;
+      if (n && !p._n.includes(n)) return false;
+      if (b && !p._b.includes(b)) return false;
+      if (cat !== "All" && p.category !== cat) return false;
+      if (u && !p._u.includes(u)) return false;
+      if (st !== "All") {
+        const curr = p.current_stock || 0;
+        const min = p.min_stock || 5;
+        const isOut = curr === 0;
+        const isLow = !isOut && curr <= min;
+        const statusStr = isOut ? "Out of Stock" : isLow ? "Low Stock" : "Active";
+        if (statusStr !== st) return false;
+      }
+      return true;
+    });
+  }, [products, colFilters]);
 
   const handleExportLiveInventory = () => {
     if (!filteredProducts || filteredProducts.length === 0) {
@@ -336,7 +354,7 @@ export default function InventoryHub() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredProducts.map((p) => {
+                    {filteredProducts.slice(0, displayLimit).map((p) => {
                       const curr = p.current_stock || 0;
                       const min = p.min_stock || 5;
                       const isOut = curr === 0;
@@ -406,6 +424,18 @@ export default function InventoryHub() {
                         </tr>
                       );
                     })}
+                    {filteredProducts.length > displayLimit && (
+                      <tr>
+                        <td colSpan={11} className="text-center py-4 bg-slate-50/50">
+                          <button
+                            onClick={() => setDisplayLimit((prev) => prev + 200)}
+                            className="px-4 py-2 bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 font-bold text-xs rounded-xl shadow-xs transition"
+                          >
+                            Show More Products (Showing {displayLimit} of {filteredProducts.length})
+                          </button>
+                        </td>
+                      </tr>
+                    )}
                     {filteredProducts.length === 0 && (
                       <tr>
                         <td colSpan={11} className="text-center py-12 text-slate-500 font-medium">

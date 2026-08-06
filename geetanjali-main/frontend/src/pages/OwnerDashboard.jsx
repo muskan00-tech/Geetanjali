@@ -10,13 +10,7 @@ import {
   ArrowRight,
   TrendingUp,
   Crown,
-  Sparkles,
   PieChart as PieIcon,
-  Leaf,
-  Layers,
-  ShoppingCart,
-  ClipboardList,
-  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -112,7 +106,7 @@ export default function OwnerDashboard() {
   };
 
   return (
-    <div className="p-6 sm:p-10 relative max-w-7xl mx-auto space-y-8 pb-32">
+    <div className="p-6 sm:p-10 relative max-w-7xl mx-auto space-y-8 pb-10">
       {/* Executive Hero Banner */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
@@ -392,43 +386,6 @@ export default function OwnerDashboard() {
         </div>
       )}
 
-      {/* Bottom Action Bar matching Neomorphism design */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 neu-card p-2.5 flex items-center gap-3 z-50">
-        <Link to="/pos" className="neu-pill flex items-center gap-2.5 px-5 py-2.5 text-xs font-extrabold text-slate-800">
-          <div className="w-7 h-7 rounded-full neu-inset text-emerald-700 flex items-center justify-center">
-            <Leaf className="w-3.5 h-3.5" />
-          </div>
-          <span className="whitespace-nowrap">Import POS</span>
-        </Link>
-
-        <Link to="/procurement" className="neu-pill flex items-center gap-2.5 px-5 py-2.5 text-xs font-extrabold text-slate-800">
-          <div className="w-7 h-7 rounded-full neu-inset text-amber-700 flex items-center justify-center">
-            <ShoppingCart className="w-3.5 h-3.5" />
-          </div>
-          <span className="whitespace-nowrap">Add Purchase Order</span>
-        </Link>
-
-        <Link to="/stock-audit" className="neu-pill flex items-center gap-2.5 px-5 py-2.5 text-xs font-extrabold text-slate-800">
-          <div className="w-7 h-7 rounded-full neu-inset text-rose-700 flex items-center justify-center">
-            <ClipboardList className="w-3.5 h-3.5" />
-          </div>
-          <span className="whitespace-nowrap">Stock Audit</span>
-        </Link>
-
-        <Link to="/sales" className="neu-pill flex items-center gap-2.5 px-5 py-2.5 text-xs font-extrabold text-slate-800">
-          <div className="w-7 h-7 rounded-full neu-inset text-amber-700 flex items-center justify-center">
-            <PieIcon className="w-3.5 h-3.5" />
-          </div>
-          <span className="whitespace-nowrap">View Reports</span>
-        </Link>
-
-        <Link to="/attendance" className="neu-pill flex items-center gap-2.5 px-5 py-2.5 text-xs font-extrabold text-slate-800">
-          <div className="w-7 h-7 rounded-full neu-inset text-emerald-700 flex items-center justify-center">
-            <Users className="w-3.5 h-3.5" />
-          </div>
-          <span className="whitespace-nowrap">Staff Attendance</span>
-        </Link>
-      </div>
     </div>
   );
 }

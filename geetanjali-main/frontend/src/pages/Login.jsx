@@ -2,17 +2,17 @@ import { useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { errMsg } from "../lib/api";
-import { ArrowRight, ShieldCheck, Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff, Lock, Mail, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
-import GeetanjaliLogo from "../components/GeetanjaliLogo";
+import { motion } from "framer-motion";
 
 export default function Login() {
-  const { user, login, loginWithGoogle } = useAuth();
+  const { user, login } = useAuth();
   const nav = useNavigate();
-  const [email, setEmail] = useState("owner@luxurysalon.com");
-  const [password, setPassword] = useState("owner123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [gLoading, setGLoading] = useState(false);
 
   if (user) return <Navigate to="/" replace />;
 
@@ -30,148 +30,115 @@ export default function Login() {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    setGLoading(true);
-    try {
-      const u = await loginWithGoogle();
-      toast.success(`Welcome back, ${u.name}`);
-      nav(u.role === "owner" ? "/owner" : "/manager");
-    } catch (err) {
-      toast.error(errMsg(err));
-    } finally {
-      setGLoading(false);
-    }
-  };
-
-  const quickFill = (which) => {
-    if (which === "owner") {
-      setEmail("owner@luxurysalon.com");
-      setPassword("owner123");
-    } else {
-      setEmail("manager@luxurysalon.com");
-      setPassword("manager123");
-    }
-  };
-
   return (
-    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2 bg-[#F8FAFC]">
-      {/* Left panel: Ultra-Luxury Obsidian & Champagne Gold Hero */}
-      <div className="hidden lg:flex flex-col justify-between p-12 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white relative overflow-hidden">
-        <div className="absolute -top-24 -left-24 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+    <div className="min-h-screen w-full flex items-center justify-center p-4 bg-[#050507] text-slate-100 relative overflow-hidden font-sans selection:bg-amber-400 selection:text-slate-950">
+      {/* Ambient Backlight Glows */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-amber-600/10 rounded-full blur-[160px] pointer-events-none"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.05)_0%,transparent_70%)] pointer-events-none"></div>
 
-        <div className="relative z-10">
-          <GeetanjaliLogo size="md" />
-        </div>
+      {/* Main NOIR Luxury Card Frame */}
+      <motion.div
+        initial={{ opacity: 0, y: 25, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-sm sm:max-w-md bg-[#0c0c0e]/90 backdrop-blur-3xl border border-[#33271b]/80 shadow-[0_30px_100px_rgba(0,0,0,0.95)] rounded-3xl p-7 sm:p-9 relative overflow-hidden flex flex-col items-center"
+      >
+        {/* Top Metallic Accent Line */}
+        <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-[#d4af37] to-transparent opacity-90"></div>
 
-        <div className="relative z-10 max-w-lg my-auto space-y-6">
-          <span className="inline-flex items-center gap-2 px-3.5 py-1 bg-amber-400/10 border border-amber-400/30 text-amber-300 font-extrabold text-xs uppercase tracking-widest rounded-full">
-            <ShieldCheck className="w-4 h-4 text-amber-400" />
-            Luxury Salon Operations Suite
-          </span>
-          <h1 className="font-serif-lux text-4xl xl:text-6xl font-bold text-white leading-tight tracking-tight">
-            High-trust operations & <span className="bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 bg-clip-text text-transparent">automated salon analytics.</span>
+        {/* Brand Header */}
+        <div className="text-center pt-2 pb-4 z-10 flex flex-col items-center">
+          <h1 className="font-serif-lux text-3xl sm:text-4xl font-bold tracking-[0.22em] text-transparent bg-clip-text bg-gradient-to-b from-[#fceabb] via-[#f8b500] to-[#b8860b] drop-shadow-sm uppercase">
+            GEETANJALI
           </h1>
-          <p className="text-slate-300 text-base leading-relaxed font-medium">
-            Real-time inventory intelligence, automated commission payouts, stock leakage detection, and POS reconciliation.
-          </p>
+          <span className="text-[11px] font-extrabold tracking-[0.35em] text-[#d4af37]/80 uppercase mt-1">
+            SALON & SUITE
+          </span>
         </div>
 
-        <div className="relative z-10 text-xs font-semibold text-slate-400 flex justify-between items-center">
-          <span>© Geetanjali Salon Operations Platform</span>
-          <span className="text-amber-400/80 font-bold">PostgreSQL Engine Enabled</span>
+        {/* Hero Hair Artwork with Soft Radial Vignette */}
+        <div className="relative w-full h-44 sm:h-52 my-1 flex items-center justify-center overflow-hidden rounded-2xl">
+          <div className="absolute inset-0 bg-gradient-to-b from-[#0c0c0e] via-transparent to-[#0c0c0e] z-10 pointer-events-none"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0c0c0e] via-transparent to-[#0c0c0e] z-10 pointer-events-none"></div>
+          <img
+            src="/assets/noir_salon_hair.png"
+            alt="Geetanjali Luxury Hair"
+            className="w-full h-full object-cover object-center scale-105 filter contrast-[1.08] brightness-[0.95] rounded-2xl"
+          />
         </div>
-      </div>
 
-      {/* Right panel: High-contrast sign-in form */}
-      <div className="flex items-center justify-center px-6 py-12 bg-white">
-        <form onSubmit={submit} className="w-full max-w-md" data-testid="login-form">
-          <div className="lg:hidden flex items-center gap-2.5 mb-8">
-            <GeetanjaliLogo size="md" />
-          </div>
-
-          <div className="lss-overline text-amber-800 mb-1">Sign In</div>
-          <h2 className="font-serif-lux text-4xl font-bold text-slate-950 tracking-tight mb-2">Welcome Back</h2>
-          <p className="text-sm font-medium text-slate-600 mb-8">Enter your credentials to access the operations workspace.</p>
-
-          <div className="space-y-4">
-            <div>
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide block mb-1.5">Email Address</label>
+        {/* Sign In Form */}
+        <form onSubmit={submit} data-testid="login-form" className="w-full space-y-4 pt-2 z-20">
+          <div>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#9a8264]">
+                <Mail className="w-4 h-4" />
+              </div>
               <input
                 data-testid="login-email"
-                className="w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-slate-950 font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition-all shadow-xs"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
                 type="email"
                 required
-              />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide block mb-1.5">Password</label>
-              <input
-                data-testid="login-password"
-                className="w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-slate-950 font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition-all shadow-xs"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                type="password"
-                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email"
+                className="w-full pl-11 pr-4 py-3.5 bg-[#141418]/90 border border-[#382f25] focus:border-[#d4af37] text-white placeholder-[#857463] text-sm rounded-xl outline-none transition-all shadow-inner focus:ring-1 focus:ring-[#d4af37]/40"
               />
             </div>
           </div>
 
+          <div>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#9a8264]">
+                <Lock className="w-4 h-4" />
+              </div>
+              <input
+                data-testid="login-password"
+                type={showPassword ? "text" : "password"}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                className="w-full pl-11 pr-11 py-3.5 bg-[#141418]/90 border border-[#382f25] focus:border-[#d4af37] text-white placeholder-[#857463] text-sm rounded-xl outline-none transition-all shadow-inner focus:ring-1 focus:ring-[#d4af37]/40"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 pr-4 flex items-center text-[#9a8264] hover:text-[#d4af37] transition cursor-pointer"
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Golden SIGN IN Button */}
           <button
             type="submit"
             disabled={loading}
             data-testid="login-submit"
-            className="w-full mt-8 py-3.5 px-4 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-600 hover:to-amber-500 text-slate-950 font-extrabold text-sm tracking-wide rounded-xl transition-all shadow-md shadow-amber-500/20 border border-amber-300/40 flex items-center justify-center gap-2 disabled:opacity-60"
+            className="w-full mt-2 py-3.5 px-4 bg-gradient-to-r from-[#c69a3a] via-[#f7eaad] to-[#a47622] hover:brightness-110 active:scale-[0.99] text-[#0d0b07] font-black text-sm tracking-[0.18em] rounded-xl transition-all shadow-[0_4px_25px_rgba(212,175,55,0.25)] border border-[#fceabb]/40 uppercase flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
           >
             {loading && <Loader2 className="w-4 h-4 text-slate-950 animate-spin" />}
-            <span>{loading ? "Signing in..." : "Sign In to Platform"}</span>
-            {!loading && <ArrowRight className="w-4 h-4 text-slate-950" />}
+            <span>{loading ? "AUTHENTICATING..." : "SIGN IN"}</span>
           </button>
+        </form>
 
+        {/* Forgot Password / Footer Links */}
+        <div className="w-full text-center mt-5 space-y-4">
           <button
             type="button"
-            onClick={handleGoogleLogin}
-            disabled={gLoading || loading}
-            className="w-full mt-3 py-3 px-4 bg-white hover:bg-slate-50 text-slate-800 font-bold text-sm rounded-xl border border-slate-300 flex items-center justify-center gap-3 transition-all shadow-xs disabled:opacity-60"
+            onClick={() => toast.info("Please contact the System Administrator to reset your password.")}
+            className="text-xs font-medium text-[#a39077] hover:text-[#d4af37] transition cursor-pointer"
           >
-            {gLoading ? (
-              <Loader2 className="w-4 h-4 text-slate-800 animate-spin" />
-            ) : (
-              <svg className="w-4 h-4" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-              </svg>
-            )}
-            <span>{gLoading ? "Authenticating..." : "Sign in with Google"}</span>
+            Forgot Password?
           </button>
 
-          <div className="mt-8 pt-6 border-t border-slate-200">
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3">Quick Demo Login</div>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                data-testid="quick-owner"
-                onClick={() => quickFill("owner")}
-                className="py-2.5 px-3 bg-amber-50/80 hover:bg-amber-100/80 text-amber-950 font-extrabold text-xs rounded-xl transition-colors border border-amber-300/60 text-center shadow-xs"
-              >
-                Owner Demo
-              </button>
-              <button
-                type="button"
-                data-testid="quick-manager"
-                onClick={() => quickFill("manager")}
-                className="py-2.5 px-3 bg-slate-100 hover:bg-slate-200/80 text-slate-950 font-extrabold text-xs rounded-xl transition-colors border border-slate-300 text-center shadow-xs"
-              >
-                Manager Demo
-              </button>
-            </div>
+          <div className="pt-2 border-t border-[#261f17]/80 flex items-center justify-center gap-2 text-[11px] font-semibold text-[#806f5c]">
+            <ShieldCheck className="w-3.5 h-3.5 text-[#d4af37]" />
+            <span>Geetanjali Salon: Enterprise Operations</span>
           </div>
-        </form>
-      </div>
+        </div>
+      </motion.div>
     </div>
   );
 }

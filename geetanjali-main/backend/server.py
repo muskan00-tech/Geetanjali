@@ -4154,7 +4154,6 @@ async def apply_salon_basics_42():
                 total_inv_val += line_total
                 
                 session.add(PurchaseInvoiceLine(
-                    id=new_id(),
                     invoice_id=pi_id, sku_id=sku.id, sku_name=sku.name,
                     quantity=qty_add, unit_cost=cost, line_total=line_total
                 ))

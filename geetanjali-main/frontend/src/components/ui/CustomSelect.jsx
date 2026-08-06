@@ -37,9 +37,9 @@ export default function CustomSelect({
     if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
       setCoords({
-        top: rect.bottom + window.scrollY + 4,
-        left: rect.left + window.scrollX,
-        width: rect.width,
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: Math.max(rect.width, 120),
       });
     }
   };
@@ -51,13 +51,13 @@ export default function CustomSelect({
         if (e.target && e.target.closest && e.target.closest(".custom-select-portal")) {
           return;
         }
-        updateCoords();
+        setIsOpen(false);
       };
       window.addEventListener("scroll", handleScroll, true);
-      window.addEventListener("resize", updateCoords);
+      window.addEventListener("resize", () => setIsOpen(false));
       return () => {
         window.removeEventListener("scroll", handleScroll, true);
-        window.removeEventListener("resize", updateCoords);
+        window.removeEventListener("resize", () => setIsOpen(false));
       };
     }
   }, [isOpen]);

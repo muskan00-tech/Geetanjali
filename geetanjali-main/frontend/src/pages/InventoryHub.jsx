@@ -337,21 +337,6 @@ export default function InventoryHub() {
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Filtered Valuation</span>
                 <span className="text-xl font-black text-emerald-400 tabular">{money(filteredMetrics.totalValuation)}</span>
               </div>
-
-              <div className="hidden lg:flex items-center gap-3 text-xs text-slate-400 border-l border-slate-800/80 pl-4 shrink-0">
-                <div>
-                  <span className="block text-[10px] uppercase font-bold text-slate-500">Store</span>
-                  <span className="font-black text-slate-200">{filteredMetrics.storeQty}</span>
-                </div>
-                <div>
-                  <span className="block text-[10px] uppercase font-bold text-slate-500">Floor</span>
-                  <span className="font-black text-slate-200">{filteredMetrics.floorQty}</span>
-                </div>
-                <div>
-                  <span className="block text-[10px] uppercase font-bold text-slate-500">Retail</span>
-                  <span className="font-black text-slate-200">{filteredMetrics.retailQty}</span>
-                </div>
-              </div>
             </div>
           </div>
 

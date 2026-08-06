@@ -2699,14 +2699,14 @@ class InventoryProductIn(BaseModel):
     vendor_id: Optional[str] = None
     vendor_name: Optional[str] = ""
     unit: Optional[str] = "Piece"
-    unit_cost: float = 0.0
-    mrp: float = 0.0
-    selling_price: float = 0.0
-    min_stock: float = 5.0
-    reorder_level: float = 10.0
-    store_qty: float = 0.0
-    floor_qty: float = 0.0
-    retail_qty: float = 0.0
+    unit_cost: Optional[float] = None
+    mrp: Optional[float] = None
+    selling_price: Optional[float] = None
+    min_stock: Optional[float] = None
+    reorder_level: Optional[float] = None
+    store_qty: Optional[float] = None
+    floor_qty: Optional[float] = None
+    retail_qty: Optional[float] = None
 
 class PurchaseInPayload(BaseModel):
     method: str = "direct"  # "po" | "direct"
@@ -3821,6 +3821,57 @@ app.add_middleware(
 @app.on_event("shutdown")
 async def shutdown():
     await close_pg()
+
+@app.get("/api/system/health-storage")
+async def get_system_health_storage():
+    try:
+        async with async_session() as session:
+            # 1. Total Database Storage Size
+            size_res = await session.execute(text("SELECT pg_database_size(current_database()) as bytes, pg_size_pretty(pg_database_size(current_database())) as pretty"))
+            db_size_row = size_res.fetchone()
+            
+            # 2. Table Breakdown & Row Counts
+            tables_res = await session.execute(text("""
+                SELECT relname as table_name, 
+                       n_live_tup as row_count,
+                       pg_size_pretty(pg_total_relation_size(relid)) as total_size,
+                       pg_total_relation_size(relid) as bytes
+                FROM pg_stat_user_tables
+                ORDER BY pg_total_relation_size(relid) DESC;
+            """))
+            tables_data = [
+                {
+                    "table_name": r[0],
+                    "row_count": r[1],
+                    "pretty_size": r[2],
+                    "size_bytes": r[3]
+                }
+                for r in tables_res.fetchall()
+            ]
+            
+            # 3. Connection Count
+            conn_res = await session.execute(text("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database();"))
+            active_conns = conn_res.scalar()
+
+            return {
+                "status": "healthy",
+                "render_backend": {
+                    "status": "Online",
+                    "region": "Singapore (ap-southeast-1) / Cloud",
+                    "python_version": sys.version.split()[0],
+                    "framework": "FastAPI + Uvicorn Async",
+                },
+                "database_storage": {
+                    "provider": "Supabase PostgreSQL",
+                    "status": "Healthy & Connected",
+                    "total_used_bytes": db_size_row[0] if db_size_row else 0,
+                    "pretty_used_size": db_size_row[1] if db_size_row else "0 MB",
+                    "active_connections": active_conns,
+                    "tables": tables_data
+                }
+            }
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
 
 if __name__ == "__main__":
     import uvicorn

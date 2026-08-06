@@ -4088,7 +4088,7 @@ SALON_BASICS_42_ITEMS = [
     }
 ]
 
-@api.post("/inventory/apply-salon-basics-42")
+@app.post("/api/inventory/apply-salon-basics-42")
 async def apply_salon_basics_42():
     pi_id = new_id()
     invoice_number = "SB/8415/2026-27"

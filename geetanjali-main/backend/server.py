@@ -4146,8 +4146,8 @@ async def apply_salon_basics_42():
                     id=new_id(), transaction_id=invoice_number, date=today_str,
                     sku_id=sku.id, product_name=sku.name, quantity=qty_add,
                     transaction_type="INVOICE_RECEIVE", before_stock=old_qty,
-                    after_stock=new_qty, unit_cost=cost, total_val=round(new_qty * cost, 2),
-                    notes=f"Invoice SB/8415/2026-27 received from SALON BASICS"
+                    after_stock=new_qty, performed_by="owner@luxurysalon.com",
+                    remarks=f"Invoice SB/8415/2026-27 received from SALON BASICS"
                 ))
                 
                 line_total = round(qty_add * cost, 2)

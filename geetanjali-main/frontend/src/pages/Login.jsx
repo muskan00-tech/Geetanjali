@@ -7,13 +7,14 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 export default function Login() {
-  const { user, login } = useAuth();
+  const { user, login, resetPassword } = useAuth();
   const nav = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   if (user) return <Navigate to="/" replace />;
 
@@ -28,6 +29,22 @@ export default function Login() {
       toast.error(errMsg(err));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      toast.error("Please enter your email address in the field above first.");
+      return;
+    }
+    setResetting(true);
+    try {
+      await resetPassword(email);
+      toast.success(`Password reset email sent to ${email}! Please check your inbox.`);
+    } catch (err) {
+      toast.error(errMsg(err));
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -119,10 +136,11 @@ export default function Login() {
             </label>
             <button
               type="button"
-              onClick={() => toast.info("Contact Administrator to reset password.")}
-              className="text-slate-600 hover:text-slate-900 transition cursor-pointer"
+              disabled={resetting}
+              onClick={handleForgotPassword}
+              className="text-slate-600 hover:text-slate-900 transition cursor-pointer disabled:opacity-50"
             >
-              Forgot Password?
+              {resetting ? "Sending Email..." : "Forgot Password?"}
             </button>
           </div>
 

@@ -3,7 +3,9 @@ import {
   getAuth, 
   signInWithEmailAndPassword, 
   signOut as firebaseSignOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  sendPasswordResetEmail,
+  updatePassword
 } from "firebase/auth";
 
 const firebaseConfig = {
@@ -19,4 +21,4 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
-export { signInWithEmailAndPassword, firebaseSignOut, onAuthStateChanged };
+export { signInWithEmailAndPassword, firebaseSignOut, onAuthStateChanged, sendPasswordResetEmail, updatePassword };

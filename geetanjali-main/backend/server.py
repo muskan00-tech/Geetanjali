@@ -4143,9 +4143,10 @@ async def apply_salon_basics_42():
                 ))
                 
                 session.add(StockLedger(
-                    id=new_id(), sku_id=sku.id, sku_name=sku.name,
-                    quantity=qty_add, movement_type="INVOICE_RECEIVE", location="store",
-                    reference_id=invoice_number, date=today_str,
+                    id=new_id(), transaction_id=invoice_number, date=today_str,
+                    sku_id=sku.id, product_name=sku.name, quantity=qty_add,
+                    transaction_type="INVOICE_RECEIVE", before_stock=old_qty,
+                    after_stock=new_qty, unit_cost=cost, total_val=round(new_qty * cost, 2),
                     notes=f"Invoice SB/8415/2026-27 received from SALON BASICS"
                 ))
                 

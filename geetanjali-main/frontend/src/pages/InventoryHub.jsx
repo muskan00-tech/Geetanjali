@@ -124,6 +124,37 @@ export default function InventoryHub() {
     });
   }, [products, colFilters]);
 
+  const filteredMetrics = useMemo(() => {
+    let totalStock = 0;
+    let totalValuation = 0;
+    let storeQty = 0;
+    let floorQty = 0;
+    let retailQty = 0;
+
+    for (const p of filteredProducts) {
+      const sQty = p.store_qty || 0;
+      const fQty = p.floor_qty || 0;
+      const rQty = p.retail_qty || 0;
+      const curr = p.current_stock !== undefined ? p.current_stock : (sQty + fQty + rQty);
+      const cost = p.unit_cost || 0;
+
+      totalStock += curr;
+      totalValuation += curr * cost;
+      storeQty += sQty;
+      floorQty += fQty;
+      retailQty += rQty;
+    }
+
+    return {
+      count: filteredProducts.length,
+      totalStock,
+      totalValuation,
+      storeQty,
+      floorQty,
+      retailQty,
+    };
+  }, [filteredProducts]);
+
   const handleExportLiveInventory = () => {
     if (!filteredProducts || filteredProducts.length === 0) {
       toast.error("No inventory items found to export");
@@ -275,6 +306,54 @@ export default function InventoryHub() {
       {/* Main Section Content Render */}
       {activeSection === "inventory" && (
         <div className="space-y-6">
+          {/* Dynamic Live Filter Summary Banner */}
+          <div className="bg-slate-950 text-white p-5 rounded-2xl shadow-xl border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="p-3 bg-amber-400/10 text-amber-400 rounded-2xl border border-amber-400/20 shadow-xs">
+                <Boxes className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black uppercase tracking-wider text-amber-400">
+                    Live Active Filter Totals
+                  </span>
+                  <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase bg-amber-400/20 text-amber-300 rounded-full border border-amber-400/30">
+                    {filteredMetrics.count} Items
+                  </span>
+                </div>
+                <p className="text-xs font-medium text-slate-400 mt-0.5">
+                  Dynamically calculated stock totals & valuation for current active list filters
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 sm:gap-6 w-full md:w-auto border-t md:border-t-0 pt-3 md:pt-0 border-slate-800">
+              <div className="px-4 py-2 bg-slate-900/90 rounded-xl border border-slate-800/80 shrink-0">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Filtered Stock</span>
+                <span className="text-xl font-black text-amber-300 tabular">{filteredMetrics.totalStock.toLocaleString()} Units</span>
+              </div>
+
+              <div className="px-4 py-2 bg-slate-900/90 rounded-xl border border-slate-800/80 shrink-0">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Filtered Valuation</span>
+                <span className="text-xl font-black text-emerald-400 tabular">{money(filteredMetrics.totalValuation)}</span>
+              </div>
+
+              <div className="hidden lg:flex items-center gap-3 text-xs text-slate-400 border-l border-slate-800/80 pl-4 shrink-0">
+                <div>
+                  <span className="block text-[10px] uppercase font-bold text-slate-500">Store</span>
+                  <span className="font-black text-slate-200">{filteredMetrics.storeQty}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] uppercase font-bold text-slate-500">Floor</span>
+                  <span className="font-black text-slate-200">{filteredMetrics.floorQty}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] uppercase font-bold text-slate-500">Retail</span>
+                  <span className="font-black text-slate-200">{filteredMetrics.retailQty}</span>
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* Master Inventory Data Table */}
           <div className="lss-card overflow-hidden">
@@ -354,6 +433,28 @@ export default function InventoryHub() {
                     </tr>
                   </thead>
                   <tbody>
+                    {/* Dynamic Pinned Filter Totals Row */}
+                    <tr className="bg-amber-50/90 border-b-2 border-amber-200/80 font-black">
+                      <td colSpan={5} className="py-2.5 px-4 text-xs font-black uppercase tracking-wider text-amber-900">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                          <span>Active Filter Totals ({filteredMetrics.count} Listed Items)</span>
+                        </div>
+                      </td>
+                      <td className="text-right tabular font-black text-xs text-amber-950 py-2.5 px-4 bg-amber-100/70 border-x border-amber-200/60">
+                        {filteredMetrics.totalStock.toLocaleString()} Units
+                      </td>
+                      <td className="text-right text-xs text-slate-400 py-2.5 px-4">—</td>
+                      <td colSpan={2} className="text-right tabular font-black text-xs text-emerald-950 py-2.5 px-4 bg-emerald-100/60 border-x border-emerald-200/60">
+                        {money(filteredMetrics.totalValuation)}
+                      </td>
+                      <td className="text-xs text-slate-400 py-2.5 px-4">—</td>
+                      <td className="text-center py-2.5 px-4">
+                        <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 bg-amber-400 text-slate-950 rounded-md shadow-2xs">
+                          TOTALS
+                        </span>
+                      </td>
+                    </tr>
                     {filteredProducts.slice(0, displayLimit).map((p) => {
                       const curr = p.current_stock || 0;
                       const min = p.min_stock ?? 0;

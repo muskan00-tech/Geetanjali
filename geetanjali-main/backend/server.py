@@ -4071,7 +4071,7 @@ SALON_BASICS_42_ITEMS = [
         "unit_cost": 28.0
     },
     {
-        "sku_id": null,
+        "sku_id": None,
         "name": "PAPER BAG GEETANJALI SALON",
         "qty": 100,
         "unit_cost": 8.5,
@@ -4079,7 +4079,7 @@ SALON_BASICS_42_ITEMS = [
         "unit": "PC"
     },
     {
-        "sku_id": null,
+        "sku_id": None,
         "name": "SAVLON HW 625ML",
         "qty": 1,
         "unit_cost": 83.0,

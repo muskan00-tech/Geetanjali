@@ -4090,89 +4090,94 @@ SALON_BASICS_42_ITEMS = [
 
 @app.post("/api/inventory/apply-salon-basics-42")
 async def apply_salon_basics_42():
-    pi_id = new_id()
-    invoice_number = "SB/8415/2026-27"
-    vendor_name = "SALON BASICS"
-    invoice_date = "2026-07-20"
-    today_str = "2026-07-20"
-    
-    summary = []
-    async with async_session() as session:
-        # Step 1: Set min_stock = 0 for ALL SKUs
-        await session.execute(update(SKU).values(min_stock=0))
-        await session.commit()
+    try:
+        pi_id = new_id()
+        invoice_number = "SB/8415/2026-27"
+        vendor_name = "SALON BASICS"
+        invoice_date = "2026-07-20"
+        today_str = "2026-07-20"
         
-        total_inv_val = 0.0
-        for item in SALON_BASICS_42_ITEMS:
-            sku_id = item.get("sku_id")
-            qty_add = float(item["qty"])
-            cost = float(item["unit_cost"])
+        summary = []
+        async with async_session() as session:
+            # Step 1: Set min_stock = 0 for ALL SKUs
+            await session.execute(update(SKU).values(min_stock=0))
+            await session.commit()
             
-            sku = None
-            if sku_id:
-                res = await session.execute(select(SKU).where(SKU.id == sku_id))
-                sku = res.scalar_one_or_none()
-            
-            if not sku:
-                # Register new SKU
-                sku_id = new_id()
-                sku = SKU(
-                    id=sku_id,
-                    name=item["name"],
-                    vendor_name=vendor_name,
-                    unit=item.get("unit", "Piece"),
-                    unit_cost=cost,
-                    min_stock=0,
-                    store_qty=0.0,
-                    floor_qty=0.0,
-                    retail_qty=0.0,
-                    created_at=now_utc()
-                )
-                session.add(sku)
-                await session.flush()
-            
-            old_qty = sku.store_qty or 0.0
-            new_qty = old_qty + qty_add
-            sku.store_qty = new_qty
-            sku.unit_cost = cost
-            
-            session.add(SKUBatch(
-                id=new_id(), sku_id=sku.id, qty=qty_add, location="store",
-                unit_cost=cost, invoice_id=pi_id, received_at=now_utc()
+            total_inv_val = 0.0
+            for item in SALON_BASICS_42_ITEMS:
+                sku_id = item.get("sku_id")
+                qty_add = float(item["qty"])
+                cost = float(item["unit_cost"])
+                
+                sku = None
+                if sku_id:
+                    res = await session.execute(select(SKU).where(SKU.id == sku_id))
+                    sku = res.scalar_one_or_none()
+                
+                if not sku:
+                    # Register new SKU
+                    sku_id = new_id()
+                    sku = SKU(
+                        id=sku_id,
+                        name=item["name"],
+                        vendor_name=vendor_name,
+                        unit=item.get("unit", "Piece"),
+                        unit_cost=cost,
+                        min_stock=0,
+                        store_qty=0.0,
+                        floor_qty=0.0,
+                        retail_qty=0.0,
+                        created_at=now_utc()
+                    )
+                    session.add(sku)
+                    await session.flush()
+                
+                old_qty = sku.store_qty or 0.0
+                new_qty = old_qty + qty_add
+                sku.store_qty = new_qty
+                sku.unit_cost = cost
+                
+                session.add(SKUBatch(
+                    id=new_id(), sku_id=sku.id, qty=qty_add, location="store",
+                    unit_cost=cost, invoice_id=pi_id, received_at=now_utc()
+                ))
+                
+                session.add(StockLedger(
+                    id=new_id(), sku_id=sku.id, sku_name=sku.name,
+                    quantity=qty_add, movement_type="INVOICE_RECEIVE", location="store",
+                    reference_id=invoice_number, date=today_str,
+                    notes=f"Invoice SB/8415/2026-27 received from SALON BASICS"
+                ))
+                
+                line_total = round(qty_add * cost, 2)
+                total_inv_val += line_total
+                
+                session.add(PurchaseInvoiceLine(
+                    id=new_id(),
+                    invoice_id=pi_id, sku_id=sku.id, sku_name=sku.name,
+                    quantity=qty_add, unit_cost=cost, line_total=line_total
+                ))
+                
+                summary.append({
+                    "sku_id": sku.id,
+                    "name": sku.name,
+                    "added_qty": qty_add,
+                    "old_store_qty": old_qty,
+                    "new_store_qty": new_qty,
+                    "unit_cost": cost,
+                    "total_valuation": round(new_qty * cost, 2)
+                })
+                
+            session.add(PurchaseInvoice(
+                id=pi_id, invoice_number=invoice_number, vendor=vendor_name,
+                invoice_date=invoice_date, total=22111.00,
+                notes="SALON BASICS 42-Line Items Full Stock Import",
+                created_by="owner@luxurysalon.com", created_at=now_utc()
             ))
             
-            session.add(StockLedger(
-                id=new_id(), sku_id=sku.id, sku_name=sku.name,
-                quantity=qty_add, movement_type="INVOICE_RECEIVE", location="store",
-                reference_id=invoice_number, date=today_str,
-                notes=f"Invoice SB/8415/2026-27 received from SALON BASICS"
-            ))
-            
-            line_total = round(qty_add * cost, 2)
-            total_inv_val += line_total
-            
-            session.add(PurchaseInvoiceLine(
-                invoice_id=pi_id, sku_id=sku.id, sku_name=sku.name,
-                quantity=qty_add, unit_cost=cost, line_total=line_total
-            ))
-            
-            summary.append({
-                "sku_id": sku.id,
-                "name": sku.name,
-                "added_qty": qty_add,
-                "old_store_qty": old_qty,
-                "new_store_qty": new_qty,
-                "unit_cost": cost,
-                "total_valuation": round(new_qty * cost, 2)
-            })
-            
-        session.add(PurchaseInvoice(
-            id=pi_id, invoice_number=invoice_number, vendor=vendor_name,
-            invoice_date=invoice_date, total=22111.00,
-            notes="SALON BASICS 42-Line Items Full Stock Import",
-            created_by="owner@luxurysalon.com", created_at=now_utc()
-        ))
+            await session.commit()
         
-        await session.commit()
-    
-    return {"status": "success", "min_stock_reset": True, "items_processed": len(summary), "summary": summary}
+        return {"status": "success", "min_stock_reset": True, "items_processed": len(summary), "summary": summary}
+    except Exception as e:
+        import traceback
+        return {"status": "error", "error": str(e), "traceback": traceback.format_exc()}

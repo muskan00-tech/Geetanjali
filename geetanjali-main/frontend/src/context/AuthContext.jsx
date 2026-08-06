@@ -3,9 +3,7 @@ import {
   auth,
   signInWithEmailAndPassword,
   firebaseSignOut,
-  onAuthStateChanged,
-  sendPasswordResetEmail,
-  updatePassword
+  onAuthStateChanged
 } from "../lib/firebase";
 import { pingBackend } from "../lib/api";
 
@@ -82,15 +80,6 @@ export function AuthProvider({ children }) {
     return userData;
   };
 
-  const resetPassword = async (emailToReset) => {
-    await sendPasswordResetEmail(auth, emailToReset);
-  };
-
-  const changePassword = async (newPassword) => {
-    if (!auth.currentUser) throw new Error("No user currently signed in.");
-    await updatePassword(auth.currentUser, newPassword);
-  };
-
   const logout = async () => {
     localStorage.removeItem("lss_token");
     localStorage.removeItem("lss_user");
@@ -100,7 +89,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, login, logout, resetPassword, changePassword }}>
+    <AuthContext.Provider value={{ user, setUser, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -114,7 +114,7 @@ export default function InventoryHub() {
       if (u && !p._u.includes(u)) return false;
       if (st !== "All") {
         const curr = p.current_stock || 0;
-        const min = p.min_stock || 5;
+        const min = p.min_stock ?? 0;
         const isOut = curr === 0;
         const isLow = !isOut && curr <= min;
         const statusStr = isOut ? "Out of Stock" : isLow ? "Low Stock" : "Active";
@@ -356,7 +356,7 @@ export default function InventoryHub() {
                   <tbody>
                     {filteredProducts.slice(0, displayLimit).map((p) => {
                       const curr = p.current_stock || 0;
-                      const min = p.min_stock || 5;
+                      const min = p.min_stock ?? 0;
                       const isOut = curr === 0;
                       const isLow = !isOut && curr <= min;
 

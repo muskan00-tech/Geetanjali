@@ -17,7 +17,7 @@ export default function EditProductModal({ product, products = [], onClose, onSu
   const [mrp, setMrp] = useState(product?.mrp || 0);
   const [sellingPrice, setSellingPrice] = useState(product?.selling_price || 0);
   const [storeQty, setStoreQty] = useState(product?.store_qty || product?.current_stock || 0);
-  const [minStock, setMinStock] = useState(product?.min_stock || 5);
+  const [minStock, setMinStock] = useState(product?.min_stock ?? 0);
   const [submitting, setSubmitting] = useState(false);
 
   const [existingProducts, setExistingProducts] = useState(products || []);
@@ -55,7 +55,7 @@ export default function EditProductModal({ product, products = [], onClose, onSu
         mrp: parseFloat(mrp) || parseFloat(unitCost) * 1.5,
         selling_price: parseFloat(sellingPrice) || parseFloat(unitCost),
         store_qty: parseFloat(storeQty) || 0,
-        min_stock: parseFloat(minStock) || 5,
+        min_stock: isNaN(parseFloat(minStock)) ? 0 : parseFloat(minStock),
       });
 
       toast.success(`Successfully updated item '${res.data.name}'!`);

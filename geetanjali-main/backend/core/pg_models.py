@@ -122,7 +122,7 @@ class SKU(Base):
             "store_qty": self.store_qty,
             "floor_qty": self.floor_qty,
             "retail_qty": self.retail_qty or 0,
-            "status": self.status or ("Low Stock" if total_stock <= self.min_stock else "Active"),
+            "status": self.status or ("Low Stock" if (self.min_stock is not None and self.min_stock > 0 and total_stock <= self.min_stock) else "Active"),
             "batches": [b.to_dict() for b in (self.batches or [])],
             "created_at": self.created_at,
             "updated_at": self.updated_at,

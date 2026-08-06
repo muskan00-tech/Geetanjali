@@ -3128,9 +3128,10 @@ async def get_inventory_kpis():
 
         for s in skus:
             curr = (s.store_qty or 0) + (s.floor_qty or 0) + (s.retail_qty or 0)
+            min_val = s.min_stock if s.min_stock is not None else 0
             if curr == 0:
                 out_of_stock_count += 1
-            elif curr <= (s.min_stock or 5):
+            elif min_val > 0 and curr <= min_val:
                 low_stock_count += 1
 
             cat = s.category or "Others"

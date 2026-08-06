@@ -116,7 +116,7 @@ export default function InventoryHub() {
         const curr = p.current_stock || 0;
         const min = p.min_stock ?? 0;
         const isOut = curr === 0;
-        const isLow = !isOut && curr <= min;
+        const isLow = !isOut && min > 0 && curr <= min;
         const statusStr = isOut ? "Out of Stock" : isLow ? "Low Stock" : "Active";
         if (statusStr !== st) return false;
       }
@@ -358,7 +358,7 @@ export default function InventoryHub() {
                       const curr = p.current_stock || 0;
                       const min = p.min_stock ?? 0;
                       const isOut = curr === 0;
-                      const isLow = !isOut && curr <= min;
+                      const isLow = !isOut && min > 0 && curr <= min;
 
                       return (
                         <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
